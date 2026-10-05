@@ -161,12 +161,16 @@ export function createBot(env: Env): Bot {
   const isAdmin = (ctx: Context) => !!ctx.from && admins.has(ctx.from.id);
   const HELP = helpText(env.EVENT_NAME?.trim() || "Angel & Mortal");
 
-  // Never let one bad update fail the webhook (Telegram would retry it forever).
+  // Never let one bad update fail the webhook (Telegram would retry it forever),
+  // but tell the user, so a lost message isn't silent.
   bot.use(async (ctx, next) => {
     try {
       await next();
     } catch (err) {
       console.error(`update ${ctx.update.update_id} failed:`, err);
+      if (ctx.chat?.type === "private") {
+        await ctx.reply("⚠️ Something went wrong on my side, so that didn't go through. Please try again.").catch(() => {});
+      }
     }
   });
 
@@ -423,15 +427,28 @@ export function createBot(env: Env): Bot {
         await ctx.reply("⚠️ Sorry, I can't relay this kind of message.");
         return;
       }
-      throw err;
+      if (err instanceof GrammyError && err.error_code === 429) {
+        const wait = err.parameters.retry_after ?? 5;
+        await ctx.reply(`⚠️ Not delivered: you're sending too fast. Wait ${wait}s, then send this one again.`);
+        return;
+      }
+      console.error(`relay of update ${ctx.update.update_id} failed:`, err);
+      await ctx.reply("⚠️ Not delivered because of a temporary error. Please send it again.");
+      return;
     }
 
-    await db.saveMap(dest.chat_id, sentIds, {
-      sender_handle: me.handle,
-      sender_role: flip(role),
-      src_chat_id: ctx.chat.id,
-      src_msg_id: msg.message_id,
-    });
+    // Delivered: from here on, never make the sender think it failed (they'd resend a duplicate).
+    try {
+      await db.saveMap(dest.chat_id, sentIds, {
+        sender_handle: me.handle,
+        sender_role: flip(role),
+        src_chat_id: ctx.chat.id,
+        src_msg_id: msg.message_id,
+      });
+    } catch (err) {
+      // Only cost: a Reply to this message falls back to the recipient's current mode.
+      console.error(`saveMap for update ${ctx.update.update_id} failed:`, err);
+    }
     await ctx.react("👍").catch(() => {});
   });
 

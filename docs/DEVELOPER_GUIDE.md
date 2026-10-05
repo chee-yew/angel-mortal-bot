@@ -63,6 +63,10 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
    |---|---|
    | 403 (recipient blocked the bot) | "not delivered" |
    | 400 (unsupported message type) | "can't relay this kind of message" |
+   | 429 (sending too fast) | "not delivered", wait N seconds and resend |
+   | Anything else | "not delivered because of a temporary error", resend |
+
+   Once `deliver()` has succeeded, the sender always gets 👍. If saving to `msg_map` fails at that point, the error is only logged: a Reply to that message falls back to the recipient's current mode. Telling the sender it failed would make them send a duplicate. Errors anywhere else in an update are caught by the first middleware, which logs them and tells the user to try again.
 
 ## Broadcasts
 
