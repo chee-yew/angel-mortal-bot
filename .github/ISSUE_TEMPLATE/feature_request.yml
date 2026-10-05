@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: Who is it for (participants, admins, people deploying the bot) and what's hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How you'd like it to work.
+    validations:
+      required: true
+  - type: textarea
+    id: anonymity
+    attributes:
+      label: Effect on anonymity
+      description: Could this make it easier to work out who someone's angel is? Say "none" if not.

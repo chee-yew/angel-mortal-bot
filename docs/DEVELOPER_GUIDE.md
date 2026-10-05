@@ -111,7 +111,7 @@ Conventions:
 
 ## Local development
 
-Prerequisites: Node.js 20+ and a **separate test bot** from @BotFather, so you never test on the live bot.
+Prerequisites: Node.js 22.6+ (the tests use its built-in TypeScript support) and a **separate test bot** from @BotFather, so you never test on the live bot.
 
 ```bash
 npm install
@@ -155,7 +155,7 @@ In Telegram, open **@BotFather** → `/newbot` → pick a name and a username �
 Sign up at <https://dash.cloudflare.com/sign-up>. The free plan is enough and no card is needed.
 
 ### 3. Get the code and log in
-Prerequisite: Node.js 20 or newer.
+Prerequisite: Node.js 22.6 or newer.
 ```bash
 git clone https://github.com/chee-yew/angel-mortal-bot.git
 cd angel-mortal-bot
@@ -304,6 +304,8 @@ The published site is **public**, like the repo. Never put tokens or real pairin
 ## Git workflow
 - Branch `main`, pushed to `github.com/chee-yew/angel-mortal-bot`, which is **public**. Anyone can read the code, so everything private stays out of the repo (see below).
 - Small commits, one logical change each.
+- Contributions go through pull requests. See [CONTRIBUTING.md](https://github.com/chee-yew/angel-mortal-bot/blob/main/CONTRIBUTING.md).
+- **CI** (`.github/workflows/ci.yml`) runs `npm run typecheck`, `npm test` and a `wrangler deploy --dry-run` build on every push and PR. It never deploys and has no access to Cloudflare secrets; deploying stays a manual `npx wrangler deploy`.
 - Never commit:
   - real pairing CSVs
   - `.dev.vars`

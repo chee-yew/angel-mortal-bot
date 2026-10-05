@@ -1,0 +1,42 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problem? Don't file it here. See SECURITY.md to report it privately.
+        Please leave out real usernames, pairings, tokens and secrets.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. As a participant, tap "Chat with Angel"
+        2. Send a voice note
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who was affected
+      options:
+        - Participant
+        - Admin
+        - Deploying or setting up the bot
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or bot replies
+      description: Output from `npm run logs` (wrangler tail) or the bot's reply, if any.
+      render: text

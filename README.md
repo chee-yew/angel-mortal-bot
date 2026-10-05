@@ -41,7 +41,7 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 | [Plan](docs/PLAN.md) | Design decisions and build progress |
 
 ## Quick start (deploy)
-You need Node.js 20+, a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and a bot token from [@BotFather](https://t.me/BotFather). The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
+You need Node.js 22.6+, a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and a bot token from [@BotFather](https://t.me/BotFather). The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
 ```bash
 git clone https://github.com/chee-yew/angel-mortal-bot.git
 cd angel-mortal-bot
@@ -68,12 +68,16 @@ test/           Node tests (npm test)
 schema.sql      D1 tables
 wrangler.toml   Cloudflare config
 docs/           Plan, user guide, developer guide
+.github/        CI workflow, issue and PR templates
 ```
 
 ## Privacy
 - Real pairing lists are **never committed**: `*.csv` is git-ignored, except `pairings.example.csv`.
 - The bot token and webhook secret are stored only as Cloudflare secrets.
 - This repository is **public**. That's safe because anonymity comes from how the bot relays messages, not from hiding the code. Never commit tokens, real pairings or database exports.
+
+## Contributing
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to get started, and [SECURITY.md](SECURITY.md) to report a vulnerability privately.
 
 ## License
 [MIT](LICENSE)
