@@ -2,7 +2,7 @@ import { Api, Bot, GrammyError, Keyboard, type Context } from "grammy";
 import type { Message, MessageEntity } from "grammy/types";
 import { parseAdminIds } from "./config";
 import { Db, type Participant, type Role } from "./db";
-import { normaliseHandle, parsePairings } from "./pairings";
+import { isValidHandle, normaliseHandle, parsePairings } from "./pairings";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -360,6 +360,10 @@ export function createBot(env: Env): Bot {
     const [oldHandle, newHandle] = ctx.match.split(/\s+/).map(normaliseHandle);
     if (!oldHandle || !newHandle) {
       await ctx.reply("Usage: /swap @old_handle @new_handle");
+      return;
+    }
+    if (!isValidHandle(newHandle)) {
+      await ctx.reply(`"@${newHandle}" is not a valid Telegram username.`);
       return;
     }
     if (!(await db.byHandle(oldHandle))) {

@@ -8,6 +8,9 @@ export interface ParseResult {
 
 const USERNAME = /^[a-z0-9_]{4,32}$/;
 
+/** Whether an already-normalised handle could be a Telegram username. */
+export const isValidHandle = (handle: string) => USERNAME.test(handle);
+
 export function normaliseHandle(raw: string): string {
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
@@ -32,7 +35,7 @@ export function parsePairings(text: string): ParseResult {
     }
     const [angel, mortal] = parts;
     for (const h of [angel, mortal]) {
-      if (!USERNAME.test(h)) errors.push(`Line ${i + 1}: "@${h}" is not a valid Telegram username`);
+      if (!isValidHandle(h)) errors.push(`Line ${i + 1}: "@${h}" is not a valid Telegram username`);
     }
     if (angel === mortal) errors.push(`Line ${i + 1}: @${angel} is paired with themselves`);
     pairs.push([angel, mortal]);
