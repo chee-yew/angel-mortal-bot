@@ -4,7 +4,9 @@ CREATE TABLE IF NOT EXISTS participants (
   user_id   INTEGER UNIQUE,
   chat_id   INTEGER,
   target    TEXT NOT NULL DEFAULT 'mortal',   -- who plain messages go to: 'angel' | 'mortal'
-  joined_at TEXT
+  joined_at TEXT,
+  angel_thread_id  INTEGER,                   -- their "😇 My Angel" tab (topic) in the bot chat
+  mortal_thread_id INTEGER                    -- their "🙂 My Mortal" tab
 );
 
 -- angel_handle welfares mortal_handle.

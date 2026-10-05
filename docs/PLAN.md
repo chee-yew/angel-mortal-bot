@@ -152,8 +152,8 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 10 | Deploy + end-to-end test, final docs pass | ✅ done. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1, cron and the admin ID configured, and tested end-to-end on Telegram. Docs refreshed for the public repo, with a licence, contributor guide, CI and a configurable `EVENT_NAME`. |
 | 10b | Review fixes: `ADMIN_IDS` as a secret, relay failures reported to the sender, `/swap` validation, `/unbind`, `/undoupload` | ✅ done |
 | 11a | Tabs: design section in this plan and these tracker rows | ✅ done |
-| 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ⏳ next |
-| 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ⏳ |
+| 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
+| 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ⏳ next |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ⏳ |
 | 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | ⏳ |
 

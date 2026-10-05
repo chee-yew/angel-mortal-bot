@@ -8,7 +8,14 @@ export interface Participant {
   chat_id: number | null;
   target: Role;
   joined_at: string | null;
+  angel_thread_id: number | null;
+  mortal_thread_id: number | null;
 }
+
+const THREAD_COLUMN: Record<Role, string> = {
+  angel: "angel_thread_id",
+  mortal: "mortal_thread_id",
+};
 
 export interface MsgMapRow {
   sender_handle: string;
@@ -57,6 +64,28 @@ export class Db {
 
   async setTarget(handle: string, target: Role) {
     await this.d1.prepare("UPDATE participants SET target = ? WHERE handle = ?").bind(target, handle).run();
+  }
+
+  /**
+   * Saves the thread id of `handle`'s tab for their `role`, unless one is already saved.
+   * Returns false if another request saved one first (the caller should delete its duplicate tab).
+   */
+  async setThreadId(handle: string, role: Role, threadId: number) {
+    const col = THREAD_COLUMN[role];
+    const res = await this.d1
+      .prepare(`UPDATE participants SET ${col} = ? WHERE handle = ? AND ${col} IS NULL`)
+      .bind(threadId, handle)
+      .run();
+    return res.meta.changes === 1;
+  }
+
+  /** Forgets a tab that no longer exists, if it's still the saved one, so it can be recreated. */
+  async clearThreadId(handle: string, role: Role, staleThreadId: number) {
+    const col = THREAD_COLUMN[role];
+    await this.d1
+      .prepare(`UPDATE participants SET ${col} = NULL WHERE handle = ? AND ${col} = ?`)
+      .bind(handle, staleThreadId)
+      .run();
   }
 
   /** The participant who is `handle`'s angel or mortal. */
