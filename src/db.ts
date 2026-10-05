@@ -106,9 +106,16 @@ export class Db {
 
   // ---- admin ----
 
-  /** Replaces all pairings atomically; keeps join info for handles still on the list. */
+  /**
+   * Replaces all pairings atomically; keeps join info for handles still on the list.
+   * The current pairings are copied to `pairings_backup` first, so /undoupload can restore them.
+   */
   async replacePairings(pairs: Pair[]) {
-    const stmts: D1PreparedStatement[] = [this.d1.prepare("DELETE FROM pairings")];
+    const stmts: D1PreparedStatement[] = [
+      this.d1.prepare("DELETE FROM pairings_backup"),
+      this.d1.prepare("INSERT INTO pairings_backup (angel_handle, mortal_handle) SELECT angel_handle, mortal_handle FROM pairings"),
+      this.d1.prepare("DELETE FROM pairings"),
+    ];
     for (let i = 0; i < pairs.length; i += PAIRS_PER_INSERT) {
       const chunk = pairs.slice(i, i + PAIRS_PER_INSERT);
       const placeholders = chunk.map(() => "(?, ?)").join(", ");
@@ -125,6 +132,14 @@ export class Db {
       ),
     );
     await this.d1.batch(stmts);
+  }
+
+  /** The pairings as they were before the last /upload or /undoupload. */
+  async backupPairs(): Promise<Pair[]> {
+    const { results } = await this.d1
+      .prepare("SELECT angel_handle, mortal_handle FROM pairings_backup ORDER BY angel_handle")
+      .all<{ angel_handle: string; mortal_handle: string }>();
+    return results.map((r) => [r.angel_handle, r.mortal_handle]);
   }
 
   async allPairs() {
@@ -170,6 +185,21 @@ export class Db {
       this.d1.prepare("UPDATE msg_map SET sender_handle = ? WHERE sender_handle = ?").bind(newHandle, oldHandle),
     ]);
     return true;
+  }
+
+  /**
+   * Detaches the Telegram account bound to `handle`, so the next account with that username can join.
+   * Also forgets reply routing for messages that account sent or received.
+   */
+  async unbind(handle: string) {
+    const p = await this.byHandle(handle);
+    if (!p || p.user_id === null) return;
+    await this.d1.batch([
+      this.d1.prepare("DELETE FROM msg_map WHERE sender_handle = ? OR recipient_chat_id = ?").bind(handle, p.chat_id),
+      this.d1
+        .prepare("UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL, target = 'mortal' WHERE handle = ?")
+        .bind(handle),
+    ]);
   }
 
   // ---- broadcast queue ----

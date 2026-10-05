@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS pairings (
   mortal_handle TEXT NOT NULL UNIQUE
 );
 
+-- The pairings before the last /upload, so /undoupload can restore them.
+CREATE TABLE IF NOT EXISTS pairings_backup (
+  angel_handle  TEXT PRIMARY KEY,
+  mortal_handle TEXT NOT NULL UNIQUE
+);
+
 -- Every relayed message, so a Telegram "Reply" routes back to the right person.
 CREATE TABLE IF NOT EXISTS msg_map (
   recipient_chat_id INTEGER NOT NULL,

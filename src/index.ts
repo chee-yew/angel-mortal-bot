@@ -22,6 +22,8 @@ const ADMIN_COMMANDS = [
   { command: "pause", description: "Pause all relaying" },
   { command: "resume", description: "Resume relaying" },
   { command: "swap", description: "Fix a participant's handle" },
+  { command: "unbind", description: "Detach the wrong Telegram account" },
+  { command: "undoupload", description: "Restore the previous pairings" },
   { command: "myid", description: "Show your Telegram ID" },
 ];
 

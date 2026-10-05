@@ -49,6 +49,8 @@ const ADMIN_HELP = `🛠 Admin commands
 /broadcast <message>: announce to everyone who has joined
 /pause, /resume: stop/start all relaying
 /swap @old @new: fix a participant's handle
+/unbind @handle: detach the Telegram account that joined as @handle (if the wrong person got in)
+/undoupload: restore the pairings from before the last /upload
 /myid: show your Telegram ID`;
 
 const flip = (role: Role): Role => (role === "mortal" ? "angel" : "mortal");
@@ -294,6 +296,7 @@ export function createBot(env: Env): Bot {
     const { total, joined } = await db.stats();
     let reply = `✅ Saved ${pairs.length} pairings (${total} participants, ${joined} already joined).`;
     if (warnings.length) reply += `\n\n⚠️ Warnings:\n${clip(warnings)}`;
+    reply += "\n\nMistake? /undoupload restores the previous pairings.";
     await ctx.reply(reply);
   }
 
@@ -375,6 +378,42 @@ export function createBot(env: Env): Bot {
       return;
     }
     await ctx.reply(`✅ @${oldHandle} is now @${newHandle}. Their pairings are unchanged.`);
+  });
+
+  admin.command("unbind", async (ctx) => {
+    const handle = normaliseHandle(ctx.match.trim().split(/\s+/)[0]);
+    if (!handle) {
+      await ctx.reply("Usage: /unbind @handle\n\nDetaches the Telegram account that joined as @handle, e.g. if the wrong person got in.");
+      return;
+    }
+    const p = await db.byHandle(handle);
+    if (!p) {
+      await ctx.reply(`@${handle} isn't a participant.`);
+      return;
+    }
+    if (p.user_id === null) {
+      await ctx.reply(`@${handle} hasn't joined, so there's nothing to unbind.`);
+      return;
+    }
+    await db.unbind(handle);
+    await ctx.reply(
+      `✅ Detached Telegram account ${p.user_id} from @${handle}. The next account with that username to message the bot will join as them.\n\n` +
+        `If the wrong account still holds that username, it will just join again: also /swap @${handle} to the person's real username.`,
+    );
+  });
+
+  admin.command("undoupload", async (ctx) => {
+    const previous = await db.backupPairs();
+    if (!previous.length) {
+      await ctx.reply("There are no previous pairings to restore.");
+      return;
+    }
+    // Restoring goes through replacePairings, so the current pairings become the backup: /undoupload again redoes.
+    await db.replacePairings(previous);
+    const { total, joined } = await db.stats();
+    await ctx.reply(
+      `↩️ Restored ${previous.length} previous pairings (${total} participants, ${joined} joined). Send /undoupload again to switch back.`,
+    );
   });
 
   // ---- relay: must be registered last ----

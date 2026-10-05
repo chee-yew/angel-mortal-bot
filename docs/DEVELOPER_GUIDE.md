@@ -89,6 +89,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 |---|---|
 | `participants` | `handle` (lowercase, PK), `user_id`/`chat_id` (null until /start), `target`, `joined_at` |
 | `pairings` | `angel_handle` (PK) → `mortal_handle` (unique) |
+| `pairings_backup` | The pairings as they were before the last `/upload` or `/undoupload`, so `/undoupload` can restore them |
 | `msg_map` | `(recipient_chat_id, recipient_msg_id)` → original sender, their role relative to the recipient, and the source message, for reply routing |
 | `settings` | key/value pairs, currently `paused` |
 | `broadcast_queue` | Pending `/broadcast` deliveries, one row per recipient. See [Broadcasts](#broadcasts). |
@@ -97,6 +98,10 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 - new handles are inserted
 - handles no longer on the list are deleted
 - existing rows, and therefore join status, are kept
+
+Before replacing, `/upload` copies the current pairings to `pairings_backup` in the same atomic batch. `/undoupload` simply calls `replacePairings()` with the backup, so the two lists swap places and a second `/undoupload` redoes the upload.
+
+`/unbind @handle` clears `user_id`, `chat_id`, `joined_at` and `target` for that handle, and deletes the `msg_map` rows for messages the bound account sent or received, so replies to them can't route to whoever joins next.
 
 ## Code tour
 
@@ -264,6 +269,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Live logs | `npm run logs` (`wrangler tail`) |
 | Redeploy after code change | `npx wrangler deploy` |
 | Query the DB | `npx wrangler d1 execute angel-mortal --remote --command "SELECT * FROM participants"` |
+| Apply schema changes after pulling a new version | `npx wrangler d1 execute angel-mortal --remote --file=schema.sql`. It only creates missing tables, so it's safe to re-run and keeps your data. |
 | Back up the DB | `npx wrangler d1 export angel-mortal --remote --output backup.sql` (git-ignore it, because it contains pairings) |
 
 ## Free-tier limits
@@ -289,6 +295,8 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | `/setup` says "Setup failed … 401 Unauthorized" | `BOT_TOKEN` is wrong. Run `npx wrangler secret put BOT_TOKEN` again. |
 | Admin `/` menu missing | Each admin must `/start` the bot, then open `/setup` again |
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
+| The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
+| `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |
 | Admin commands say "Unknown command" | Your ID isn't in the `ADMIN_IDS` secret. Check with `npx wrangler secret list`, and set it with `npx wrangler secret put ADMIN_IDS`. `/setup` also warns about entries that aren't numeric IDs. |
 | Errors in the logs | Run `npm run logs` while reproducing. Every failed update is logged as `update <id> failed:`. |

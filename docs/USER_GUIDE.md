@@ -87,7 +87,7 @@ The bot checks the list:
 | ❌ **Errors** | **Nothing is saved.** Causes: a line without exactly two usernames, an invalid username (Telegram usernames are 4–32 letters, digits or underscores), someone paired with themselves, someone listed twice as angel or twice as mortal. Fix the list and upload again. |
 | ⚠️ **Warnings** | The list **is** saved, but check it. Causes: someone with no angel or no mortal, or two people who are each other's angel *and* mortal, so they can figure each other out. |
 
-Uploading again **replaces** the whole list. People who already joined stay joined, as long as they're still on the new list.
+Uploading again **replaces** the whole list. People who already joined stay joined, as long as they're still on the new list. Uploaded the wrong list? `/undoupload` puts the previous one back.
 
 ### Admin commands
 | Command | What it does |
@@ -100,6 +100,8 @@ Uploading again **replaces** the whole list. People who already joined stay join
 | `/broadcast <message>` | Sends "📢 Announcement from the organisers" plus your message to everyone who has joined. About 25 go out immediately and the rest within a minute or two. People who haven't joined yet won't get it. |
 | `/pause` / `/resume` | Stop or start all messaging, e.g. before the event starts or during an issue. `/broadcast` still works while paused. |
 | `/swap @old @new` | Someone changed or mistyped their username. Fixes it without re-uploading. |
+| `/unbind @handle` | The wrong Telegram account joined as `@handle` (e.g. the list had a typo and someone else owns that username). Detaches it so the right person can join. If that account still holds the username, also `/swap` the handle to the person's real username. |
+| `/undoupload` | Restores the pairings from before the last `/upload`. Send it again to switch back. People not on the restored list are removed, so they'll have to `/start` again later. |
 | `/myid` | Shows your Telegram ID |
 
 ### Suggested launch checklist

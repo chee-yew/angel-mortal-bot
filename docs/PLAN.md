@@ -63,6 +63,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 - `/broadcast <text>`: sends an announcement to every joined participant. The free plan allows 50 outgoing requests per invocation, so the bot queues one row per recipient in `broadcast_queue`, sends 25 straight away, and a cron runs every minute to send 40 more until the queue is empty. Each sender claims its batch with `DELETE … RETURNING`, so nobody gets an announcement twice. If Telegram rate-limits a batch (429), it's put back on the queue.
 - `/pause`, `/resume`: stop or start relaying globally (for example, before the event starts).
 - `/swap @old @new`: fixes a participant's handle if they change it or it was mistyped.
+- `/unbind @handle`: detaches the Telegram account bound to a handle, for when the wrong person joined (binding is by username, so a typo in the list lets whoever owns that username in).
+- `/undoupload`: restores the pairings from before the last `/upload`, which are kept in `pairings_backup`.
 
 ## Edge cases handled
 - A participant changes their username after joining: they're matched by stored `user_id` first, then by handle.
