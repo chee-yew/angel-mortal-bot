@@ -1,12 +1,14 @@
 import { Api, Bot, GrammyError, Keyboard, type Context } from "grammy";
 import type { Message, MessageEntity } from "grammy/types";
+import { parseAdminIds } from "./config";
 import { Db, type Participant, type Role } from "./db";
 import { normaliseHandle, parsePairings } from "./pairings";
 
 export interface Env {
   BOT_TOKEN: string;
   WEBHOOK_SECRET: string;
-  ADMIN_IDS: string;
+  /** Secret, not a var: comma-separated Telegram user IDs. Unset means no admins. */
+  ADMIN_IDS?: string;
   EVENT_NAME?: string;
   DB: D1Database;
 }
@@ -155,12 +157,7 @@ export async function drainBroadcastQueue(api: Api, db: Db, limit: number) {
 export function createBot(env: Env): Bot {
   const bot = new Bot(env.BOT_TOKEN);
   const db = new Db(env.DB);
-  const admins = new Set(
-    env.ADMIN_IDS.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map(Number),
-  );
+  const admins = new Set(parseAdminIds(env.ADMIN_IDS).ids);
   const isAdmin = (ctx: Context) => !!ctx.from && admins.has(ctx.from.id);
   const HELP = helpText(env.EVENT_NAME?.trim() || "Angel & Mortal");
 

@@ -48,13 +48,13 @@ cd angel-mortal-bot
 npm install
 npx wrangler login
 npx wrangler d1 create angel-mortal          # paste the id into wrangler.toml
-# also in wrangler.toml: set EVENT_NAME, and set ADMIN_IDS = "" (the committed one is the author's)
+# also in wrangler.toml: set EVENT_NAME
 npx wrangler d1 execute angel-mortal --remote --file=schema.sql
 npx wrangler secret put BOT_TOKEN
 npx wrangler secret put WEBHOOK_SECRET
 npx wrangler deploy
 ```
-Then open `https://<your-worker>.workers.dev/setup?key=<WEBHOOK_SECRET>` to register the webhook. Message the bot `/myid`, put your ID in `ADMIN_IDS` in `wrangler.toml`, redeploy, and open `/setup` again. Finally, `/upload` the pairings.
+Then open `https://<your-worker>.workers.dev/setup?key=<WEBHOOK_SECRET>` to register the webhook. Message the bot `/myid`, run `npx wrangler secret put ADMIN_IDS` with your ID, and open `/setup` again. Finally, `/upload` the pairings.
 
 **Running it for your own event?** See [Customising for your event](docs/DEVELOPER_GUIDE.md#customising-for-your-event) for what to rename and replace.
 

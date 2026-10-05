@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "logs": "wrangler tail",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings test/pairings.test.ts"
+    "test": "node --experimental-strip-types --no-warnings test/pairings.test.ts && node --experimental-strip-types --no-warnings test/config.test.ts"
   },
   "dependencies": {
     "grammy": "^1.46.0"

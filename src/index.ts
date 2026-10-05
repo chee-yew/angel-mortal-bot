@@ -1,5 +1,6 @@
 import { Api, webhookCallback, type Bot } from "grammy";
 import { BROADCAST_CRON_BATCH, createBot, drainBroadcastQueue, type Env } from "./bot";
+import { parseAdminIds } from "./config";
 import { Db } from "./db";
 
 const USER_COMMANDS = [
@@ -45,16 +46,19 @@ async function setup(url: URL, env: Env): Promise<Response> {
   await api.setMyCommands(USER_COMMANDS);
   log.push("✅ Participant command menu set");
 
-  const adminIds = env.ADMIN_IDS.split(",").map((s) => s.trim()).filter(Boolean);
+  const { ids: adminIds, invalid } = parseAdminIds(env.ADMIN_IDS);
+  for (const bad of invalid) log.push(`⚠️ Ignoring "${bad}" in ADMIN_IDS: not a Telegram user ID`);
   for (const id of adminIds) {
     try {
-      await api.setMyCommands(ADMIN_COMMANDS, { scope: { type: "chat", chat_id: Number(id) } });
+      await api.setMyCommands(ADMIN_COMMANDS, { scope: { type: "chat", chat_id: id } });
       log.push(`✅ Admin command menu set for ${id}`);
     } catch (err) {
       log.push(`⚠️ Admin menu for ${id} failed (have they sent /start to the bot?): ${err}`);
     }
   }
-  if (adminIds.length === 0) log.push("ℹ️ ADMIN_IDS is empty: send /myid to the bot, add it in wrangler.toml, redeploy, then open /setup again");
+  if (adminIds.length === 0) {
+    log.push("ℹ️ No admins: send /myid to the bot, run `npx wrangler secret put ADMIN_IDS` with it, then open /setup again");
+  }
 
   const info = await api.getWebhookInfo();
   log.push("", `Webhook info: pending updates ${info.pending_update_count}, last error: ${info.last_error_message ?? "none"}`);

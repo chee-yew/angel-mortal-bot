@@ -11,7 +11,7 @@ The E Block Angel & Mortal event needs a Telegram bot. Each participant should b
 
 ## Project layout (new folder, e.g. `angel-mortal-bot/`)
 - `package.json`: deps `grammy`; dev deps `wrangler`, `typescript`
-- `wrangler.toml`: the worker name, the D1 binding `DB`, and the vars `ADMIN_IDS`
+- `wrangler.toml`: the worker name, the D1 binding `DB`, and the var `EVENT_NAME`. `ADMIN_IDS` is a secret, so forks never inherit the author's admins.
 - `schema.sql`: D1 tables
 - `src/index.ts`: the Worker entry. Checks the webhook secret header, then hands the update to the grammY bot.
 - `src/bot.ts`: commands and the relay logic
@@ -48,7 +48,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 5. A 👍 reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
 6. Commands: `/angel`, `/mortal` (switch target), `/whoismymortal`, `/help`.
 
-## Admin commands (only for user IDs listed in `ADMIN_IDS`)
+## Admin commands (only for user IDs listed in the `ADMIN_IDS` secret)
 - `/upload`: send a `.csv` file, or paste lines of `angel_handle,mortal_handle`. The bot validates the list:
   - strips `@` and lowercases handles
   - checks there are no duplicates
@@ -81,14 +81,14 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 6. `npx wrangler secret put BOT_TOKEN`, then `npx wrangler secret put WEBHOOK_SECRET`.
 7. `npx wrangler deploy`, which gives you the URL `https://<name>.<subdomain>.workers.dev`.
 8. Open `https://<worker-url>/setup?key=<WEBHOOK_SECRET>`. This sets the webhook, using the secret and `allowed_updates: ["message"]`, and the participant command menu. The manual `setWebhook` URL is documented as a fallback.
-9. Message the bot `/myid`, put the ID in `ADMIN_IDS`, redeploy, then open `/setup` again so admins get the admin command menu.
+9. Message the bot `/myid`, run `npx wrangler secret put ADMIN_IDS` with it, then open `/setup` again so admins get the admin command menu.
 10. `/upload` the pairing CSV, then share the bot link with participants.
 
 ## Version control (git + GitHub)
 - Branch `main`, pushed to the **public** repo `https://github.com/chee-yew/angel-mortal-bot`. Being public is safe: anonymity comes from the relay design, not from hiding the code.
 - Commits are small and frequent, one logical step each.
 - Each iteration ends with a summary (files changed, how it was verified, a suggested commit message), and this plan and its progress tracker are kept up to date.
-- `.gitignore` excludes `node_modules/`, `.wrangler/`, `.dev.vars`, DB exports (`backup*.sql`) and `*.csv`, except `pairings.example.csv`. **Real pairings are never committed** because they reveal who is whose angel. The bot token and webhook secret live only in Cloudflare secrets.
+- `.gitignore` excludes `node_modules/`, `.wrangler/`, `.dev.vars`, DB exports (`backup*.sql`) and `*.csv`, except `pairings.example.csv`. **Real pairings are never committed** because they reveal who is whose angel. The bot token, webhook secret and admin IDs live only in Cloudflare secrets.
 
 ### Progress tracker
 | # | Step | Status |

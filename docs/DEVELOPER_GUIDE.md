@@ -101,6 +101,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 | [`src/pairings.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/pairings.ts) | `parsePairings()` turns raw text into `{pairs, errors, warnings}`. Pure, no I/O, and unit-tested. |
 | [`src/db.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/db.ts) | `Db` class. Every SQL query lives here. |
 | [`src/bot.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `deliver()`. |
+| [`src/config.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/config.ts) | `parseAdminIds()` reads the `ADMIN_IDS` secret, ignoring and reporting entries that aren't numeric IDs. Pure and unit-tested. |
 | [`src/index.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/index.ts) | Worker entry. `fetch()` handles `/webhook` (secret check, then grammY), `/setup` (webhook and command menus) and `/` (health check); `scheduled()` is the cron that drains broadcasts. The bot instance is cached per isolate, so `getMe` runs once rather than on every update. |
 
 Conventions:
@@ -115,7 +116,7 @@ Prerequisites: Node.js 22.6+ (the tests use its built-in TypeScript support) and
 
 ```bash
 npm install
-npm test               # pairing parser tests
+npm test               # parser and config tests
 npm run typecheck      # tsc --noEmit
 ```
 
@@ -126,7 +127,7 @@ To run the bot locally:
    WEBHOOK_SECRET=<any random string>
    ADMIN_IDS=<your Telegram ID>
    ```
-   Values here override the `[vars]` in `wrangler.toml` when running locally.
+   Locally these stand in for the Cloudflare secrets.
 2. Create the local database:
    ```bash
    npx wrangler d1 execute angel-mortal --local --file=schema.sql
@@ -174,12 +175,11 @@ Copy **only** the printed `database_id` into `wrangler.toml`. The id isn't secre
 npx wrangler d1 execute angel-mortal --remote --file=schema.sql
 ```
 
-While `wrangler.toml` is open, set the other values under `[vars]`:
+While `wrangler.toml` is open, set the event name under `[vars]`:
 ```toml
 EVENT_NAME = "Your Event Angel & Mortal"   # shown at the top of the bot's help message
-ADMIN_IDS = ""                              # empty for now; you add your own ID in step 8
 ```
-If you cloned this repo, **clear the existing `ADMIN_IDS`**. It's the original author's Telegram ID, and anyone listed there can run admin commands on your bot. See [Customising for your event](#customising-for-your-event) for everything else you might change.
+Admins are **not** set in `wrangler.toml`: `ADMIN_IDS` is a secret you add in step 8, so a fork never inherits anyone else's admins. See [Customising for your event](#customising-for-your-event) for everything else you might change.
 
 ### 5. Secrets
 ```bash
@@ -226,13 +226,12 @@ It should return `"ok":true`. Check it any time with `https://api.telegram.org/b
 
 ### 8. Make yourself admin
 1. Message the bot `/myid` and note the number.
-2. Put it in `wrangler.toml`. For several admins, separate the IDs with commas:
-   ```toml
-   [vars]
-   ADMIN_IDS = "123456789"
+2. Save it as a secret. For several admins, enter the IDs separated by commas, e.g. `123456789,987654321`:
+   ```bash
+   npx wrangler secret put ADMIN_IDS
    ```
-3. Run `npx wrangler deploy` again.
-4. Open the `/setup` link again, so admins get the admin command menu. Each admin must have sent the bot `/start` first.
+   This takes effect immediately; there's no need to redeploy. Run it again to change the list.
+3. Open the `/setup` link again, so admins get the admin command menu. Each admin must have sent the bot `/start` first.
 
 ### 9. Upload pairings and launch
 Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-checklist).
@@ -244,7 +243,7 @@ The code and docs are generic; only `wrangler.toml` holds event-specific values.
 | What | Where |
 |---|---|
 | D1 `database_id` | `wrangler.toml`. **Required:** the committed id belongs to the original author's account, so deploying with it fails. Replace it with yours from [step 4](#deployment). |
-| `ADMIN_IDS` | `wrangler.toml`. **Required:** clear the committed ID before your first deploy (step 4), then add your own in step 8. |
+| `ADMIN_IDS` | A secret, set with `npx wrangler secret put ADMIN_IDS` in [step 8](#deployment). Nothing to change in the repo. |
 | Event name in the bot's messages | `EVENT_NAME` in `wrangler.toml`, e.g. `"Hall 5 Angel & Mortal"`. It appears at the top of the help message. Leave it empty for plain "Angel & Mortal". |
 | Button labels, help and admin text | `BTN_*`, `helpText`, `ADMIN_HELP` and `ANNOUNCEMENT` in `src/bot.ts` |
 | `/` menu descriptions | `USER_COMMANDS` and `ADMIN_COMMANDS` in `src/index.ts` |
@@ -287,7 +286,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Admin `/` menu missing | Each admin must `/start` the bot, then open `/setup` again |
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |
-| Admin commands say "Unknown command" | Your ID isn't in `ADMIN_IDS`, or you didn't redeploy after editing it. |
+| Admin commands say "Unknown command" | Your ID isn't in the `ADMIN_IDS` secret. Check with `npx wrangler secret list`, and set it with `npx wrangler secret put ADMIN_IDS`. `/setup` also warns about entries that aren't numeric IDs. |
 | Errors in the logs | Run `npm run logs` while reproducing. Every failed update is logged as `update <id> failed:`. |
 
 ## Docs website

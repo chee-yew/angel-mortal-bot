@@ -58,7 +58,7 @@ Swipe left on a message (or long-press → **Reply**) to reply to it. Your reply
 
 ## Part 2 – Organisers (admins)
 
-You become an admin when your Telegram ID is in `ADMIN_IDS`. See the [Developer Guide](DEVELOPER_GUIDE.md#deployment). To find your ID, message the bot `/myid`.
+You become an admin when your Telegram ID is in the `ADMIN_IDS` secret. See the [Developer Guide](DEVELOPER_GUIDE.md#deployment). To find your ID, message the bot `/myid`.
 
 ### Preparing the pairing list
 Use a CSV, or plain text, with **one `angel,mortal` pair per line**, using Telegram usernames:
