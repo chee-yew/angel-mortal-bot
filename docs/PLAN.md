@@ -77,6 +77,27 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 ## Version control (git + GitHub)
 - Local folder: `C:\Users\wongc\angel-mortal-bot` (git repo, branch `main`). Remote: `https://github.com/chee-yew/angel-mortal-bot.git`. The remote already has 1 commit, probably a README or licence, so its history has to be merged once.
 - **Division of work:** Claude writes the code for one step, then **stops**. It leaves the changes uncommitted, says what changed, and suggests a commit message. **You** review, `git add`, `git commit` with your own message, and `git push`, then tell Claude to continue. Claude never commits, pushes or runs `gh`.
+- **Every iteration ends with a summary:**
+  - files changed and what each change does
+  - how it was verified
+  - a suggested commit message
+
+  Claude also updates the progress tracker below and keeps `docs/PLAN.md` in sync with this plan.
+
+### Progress tracker
+| # | Step | Status |
+|---|------|--------|
+| 1 | Scaffold config | ✅ pushed |
+| 2 | Schema + pairing parser + tests | ✅ pushed |
+| 3 | `.gitattributes` (LF) | ✅ pushed |
+| 4 | DB layer `src/db.ts` | ✅ pushed |
+| 5 | Relay core `src/bot.ts` | ✅ pushed |
+| — | Plan copied to `docs/PLAN.md` | ✅ pushed |
+| 6 | Reply routing | 🟡 awaiting your commit |
+| 7 | Admin commands | ⬜ |
+| 8 | Broadcast queue + cron | ⬜ |
+| 9 | Worker entry + `/setup` route | ⬜ |
+| 10 | README + participant guide | ⬜ |
 - Commits are small and frequent, one logical step each. Already done:
   1. Scaffold config
   2. Schema + pairing parser + tests

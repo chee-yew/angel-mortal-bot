@@ -201,8 +201,23 @@ export function createBot(env: Env): Bot {
       return;
     }
 
-    const role = me.target;
-    const dest = await db.partner(me.handle, role);
+    // A Telegram "Reply" to a relayed message goes back to whoever sent it, whatever the current mode.
+    let role = me.target;
+    let replyTo: number | undefined;
+    let dest: Participant | null = null;
+    if (msg.reply_to_message) {
+      const origin = await db.getMap(ctx.chat.id, msg.reply_to_message.message_id);
+      if (origin) {
+        const candidate = await db.partner(me.handle, origin.sender_role);
+        // Ignore stale mappings if the pairings were re-uploaded since.
+        if (candidate?.handle === origin.sender_handle) {
+          role = origin.sender_role;
+          dest = candidate;
+          replyTo = origin.src_msg_id;
+        }
+      }
+    }
+    dest ??= await db.partner(me.handle, role);
     if (!dest) {
       await ctx.reply(`You don't have ${role === "angel" ? "an angel" : "a mortal"} assigned. Contact the organiser.`);
       return;
@@ -214,7 +229,7 @@ export function createBot(env: Env): Bot {
 
     let sentIds: number[];
     try {
-      sentIds = await deliver(ctx.api, msg, dest.chat_id, LABEL[flip(role)]);
+      sentIds = await deliver(ctx.api, msg, dest.chat_id, LABEL[flip(role)], replyTo);
     } catch (err) {
       if (err instanceof GrammyError && err.error_code === 403) {
         await ctx.reply(`⚠️ Not delivered: your ${role} has blocked or stopped the bot.`);
