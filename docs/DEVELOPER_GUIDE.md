@@ -124,7 +124,9 @@ To run the bot locally:
    ```
    BOT_TOKEN=<test bot token>
    WEBHOOK_SECRET=<any random string>
+   ADMIN_IDS=<your Telegram ID>
    ```
+   Values here override the `[vars]` in `wrangler.toml` when running locally.
 2. Create the local database:
    ```bash
    npx wrangler d1 execute angel-mortal --local --file=schema.sql
@@ -172,6 +174,13 @@ Copy **only** the printed `database_id` into `wrangler.toml`. The id isn't secre
 npx wrangler d1 execute angel-mortal --remote --file=schema.sql
 ```
 
+While `wrangler.toml` is open, set the other values under `[vars]`:
+```toml
+EVENT_NAME = "Your Event Angel & Mortal"   # shown at the top of the bot's help message
+ADMIN_IDS = ""                              # empty for now; you add your own ID in step 8
+```
+If you cloned this repo, **clear the existing `ADMIN_IDS`**. It's the original author's Telegram ID, and anyone listed there can run admin commands on your bot. See [Customising for your event](#customising-for-your-event) for everything else you might change.
+
 ### 5. Secrets
 ```bash
 npx wrangler secret put BOT_TOKEN
@@ -186,7 +195,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```bash
 npx wrangler deploy
 ```
-Note the URL it prints: `https://angel-mortal-bot.<your-subdomain>.workers.dev`.
+Note the URL it prints: `https://angel-mortal-bot.<your-subdomain>.workers.dev`. On a brand-new Cloudflare account, Wrangler first asks you to choose a `workers.dev` subdomain.
 
 ### 7. Register the webhook
 Open this in a browser, using your Worker URL and your `WEBHOOK_SECRET`:
@@ -235,7 +244,7 @@ The code and docs are generic; only `wrangler.toml` holds event-specific values.
 | What | Where |
 |---|---|
 | D1 `database_id` | `wrangler.toml`. **Required:** the committed id belongs to the original author's account, so deploying with it fails. Replace it with yours from [step 4](#deployment). |
-| `ADMIN_IDS` | `wrangler.toml`. **Required:** replace the committed ID with your own, from step 8. |
+| `ADMIN_IDS` | `wrangler.toml`. **Required:** clear the committed ID before your first deploy (step 4), then add your own in step 8. |
 | Event name in the bot's messages | `EVENT_NAME` in `wrangler.toml`, e.g. `"Hall 5 Angel & Mortal"`. It appears at the top of the help message. Leave it empty for plain "Angel & Mortal". |
 | Button labels, help and admin text | `BTN_*`, `helpText`, `ADMIN_HELP` and `ANNOUNCEMENT` in `src/bot.ts` |
 | `/` menu descriptions | `USER_COMMANDS` and `ADMIN_COMMANDS` in `src/index.ts` |

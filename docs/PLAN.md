@@ -104,7 +104,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 7c | Docs website (GitHub Pages) | ✅ done |
 | 8 | `/broadcast` queue (+ docs) | ✅ done |
 | 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ✅ done |
-| 10 | Deploy + end-to-end test, final docs pass | 🟡 in progress. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1, cron and the admin ID configured; docs refreshed for the public repo, with a licence and customisation guide. Remaining: end-to-end test on Telegram. |
+| 10 | Deploy + end-to-end test, final docs pass | ✅ done. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1, cron and the admin ID configured, and tested end-to-end on Telegram. Docs refreshed for the public repo, with a licence, contributor guide, CI and a configurable `EVENT_NAME`. |
 
 ## Verification
 - `npx tsc --noEmit` passes.

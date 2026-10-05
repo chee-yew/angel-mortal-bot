@@ -8,7 +8,7 @@ Every participant has:
 
 The bot lets each participant chat with both through one bot. Messages are re-sent by the bot itself, so **the angel's identity is never revealed**.
 
-> **Status:** feature-complete and deployable; end-to-end testing on Telegram is pending. See the progress tracker in [docs/PLAN.md](docs/PLAN.md).
+> **Status:** feature-complete, deployed and tested end-to-end on Telegram. See [docs/PLAN.md](docs/PLAN.md) for the design decisions and build history.
 
 ## Features
 - Anonymous two-way chat with your Angel and your Mortal, switched with a single button
@@ -48,6 +48,7 @@ cd angel-mortal-bot
 npm install
 npx wrangler login
 npx wrangler d1 create angel-mortal          # paste the id into wrangler.toml
+# also in wrangler.toml: set EVENT_NAME, and set ADMIN_IDS = "" (the committed one is the author's)
 npx wrangler d1 execute angel-mortal --remote --file=schema.sql
 npx wrangler secret put BOT_TOKEN
 npx wrangler secret put WEBHOOK_SECRET

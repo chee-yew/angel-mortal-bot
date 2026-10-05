@@ -69,6 +69,7 @@ bob_lim,charlie_ng
 charlie_ng,alice_tan
 ```
 - The header row is optional. `@` and capital letters don't matter.
+- Blank lines and lines starting with `#` are ignored, so you can add comments.
 - Commas, tabs, semicolons or spaces all work as separators. A sheet copied straight from Google Sheets works.
 - Each person should appear **exactly once as an angel and once as a mortal**.
 
@@ -83,7 +84,7 @@ The bot checks the list:
 
 | Result | Meaning |
 |---|---|
-| ❌ **Errors** | **Nothing is saved.** Causes: bad username, someone paired with themselves, someone listed twice as angel or twice as mortal. Fix the list and upload again. |
+| ❌ **Errors** | **Nothing is saved.** Causes: a line without exactly two usernames, an invalid username (Telegram usernames are 4–32 letters, digits or underscores), someone paired with themselves, someone listed twice as angel or twice as mortal. Fix the list and upload again. |
 | ⚠️ **Warnings** | The list **is** saved, but check it. Causes: someone with no angel or no mortal, or two people who are each other's angel *and* mortal, so they can figure each other out. |
 
 Uploading again **replaces** the whole list. People who already joined stay joined, as long as they're still on the new list.
@@ -94,7 +95,7 @@ Uploading again **replaces** the whole list. People who already joined stay join
 | `/admin` | Shows this list |
 | `/upload` | Replaces all pairings (see above) |
 | `/pairs` | Lists every Angel → Mortal pair; ⏳ = hasn't joined yet |
-| `/status` | Participants, how many joined, messages relayed, paused or running |
+| `/status` | Participants, how many joined, messages relayed, broadcasts still queued, paused or running |
 | `/missing` | Usernames that haven't started the bot. Use it to chase people. |
 | `/broadcast <message>` | Sends "📢 Announcement from the organisers" plus your message to everyone who has joined. About 25 go out immediately and the rest within a minute or two. People who haven't joined yet won't get it. |
 | `/pause` / `/resume` | Stop or start all messaging, e.g. before the event starts or during an issue. `/broadcast` still works while paused. |
