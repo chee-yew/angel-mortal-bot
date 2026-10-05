@@ -3,6 +3,7 @@
 Contents:
 - [Architecture](#architecture)
 - [How a message is relayed](#how-a-message-is-relayed)
+- [Broadcasts](#broadcasts)
 - [Data model](#data-model)
 - [Code tour](#code-tour)
 - [Local development](#local-development)
@@ -53,6 +54,19 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
    | 403 (recipient blocked the bot) | "not delivered" |
    | 400 (unsupported message type) | "can't relay this kind of message" |
 
+## Broadcasts
+
+The free Workers plan allows only **50 outgoing requests per invocation**, and each Telegram message is one request. So `/broadcast` can't message 60 people in a single go:
+
+1. `/broadcast` inserts one `broadcast_queue` row per joined participant in a single `INSERT … SELECT`.
+2. It immediately drains up to **25** (`BROADCAST_INLINE_BATCH`).
+3. The **cron trigger** runs every minute and drains up to **40** (`BROADCAST_CRON_BATCH`), until the queue is empty.
+
+Draining goes through `drainBroadcastQueue()` in `bot.ts`:
+- It **claims** rows with `DELETE … RETURNING`, so two drains running at the same moment can never send someone the same message twice.
+- On **429** (rate limited), the unsent rows are put back for the next run.
+- On any other error (the person blocked the bot, or deleted their account), the row is dropped and the error logged.
+
 ## Data model
 
 Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main/schema.sql):
@@ -63,7 +77,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 | `pairings` | `angel_handle` (PK) → `mortal_handle` (unique) |
 | `msg_map` | `(recipient_chat_id, recipient_msg_id)` → original sender, their role relative to the recipient, and the source message, for reply routing |
 | `settings` | key/value pairs, currently `paused` |
-| `broadcast_queue` | pending `/broadcast` deliveries (coming in step 8) |
+| `broadcast_queue` | Pending `/broadcast` deliveries, one row per recipient. See [Broadcasts](#broadcasts). |
 
 `participants` is derived from `pairings` on every `/upload`:
 - new handles are inserted

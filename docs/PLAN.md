@@ -59,7 +59,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 - `/pairs`: lists every angel→mortal pairing, with ⏳ marking anyone who hasn't joined. Long lists are split across several messages.
 - `/status`: shows total participants, how many have joined, and the counts of messages relayed.
 - `/missing`: lists the handles that haven't /start-ed yet, so you can chase them.
-- `/broadcast <text>`: sends an announcement to every joined participant, throttled to stay under Telegram's ~30 msg/s limit.
+- `/broadcast <text>`: sends an announcement to every joined participant. The free plan allows 50 outgoing requests per invocation, so the bot queues one row per recipient in `broadcast_queue`, sends 25 straight away, and a cron runs every minute to send 40 more until the queue is empty. Each sender claims its batch with `DELETE … RETURNING`, so nobody gets an announcement twice. If Telegram rate-limits a batch (429), it's put back on the queue.
 - `/pause`, `/resume`: stop or start relaying globally (for example, before the event starts).
 - `/swap @old @new`: fixes a participant's handle if they change it or it was mistyped.
 
@@ -105,9 +105,9 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 6 | Reply routing | ✅ pushed |
 | 7 | Admin commands | ✅ committed |
 | 7b | README + User Guide + Developer Guide | ✅ committed |
-| 7c | Docs website (GitHub Pages) | 🟡 awaiting your commit, then the Pages setting |
-| 8 | Broadcast queue + cron (+ docs) | ⬜ |
-| 9 | Worker entry + `/setup` route (+ docs) | ⬜ |
+| 7c | Docs website (GitHub Pages) | ✅ pushed |
+| 8 | `/broadcast` queue (+ docs) | 🟡 awaiting your commit |
+| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ⬜ |
 | 10 | Deploy + end-to-end test, final docs pass | ⬜ |
 - Commits are small and frequent, one logical step each. Already done:
   1. Scaffold config

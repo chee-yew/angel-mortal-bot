@@ -43,6 +43,7 @@ const ADMIN_HELP = `🛠 Admin commands
 /pairs: list every pairing and who hasn't joined
 /status: join and message counts
 /missing: handles that haven't started the bot
+/broadcast <message>: announce to everyone who has joined
 /pause, /resume: stop/start all relaying
 /swap @old @new: fix a participant's handle
 /myid: show your Telegram ID`;
@@ -112,6 +113,42 @@ async function deliver(api: Api, msg: Message, chatId: number, label: string, re
   });
   const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id);
   return [head.message_id, sent.message_id];
+}
+
+const ANNOUNCEMENT = "📢 Announcement from the organisers";
+
+// Each send is one outgoing request; stay well under the free plan's 50 per invocation.
+const BROADCAST_INLINE_BATCH = 25;
+export const BROADCAST_CRON_BATCH = 40;
+
+/**
+ * Sends up to `limit` queued broadcast messages. Called inline by /broadcast and every minute by
+ * the cron trigger. The free Workers plan allows only 50 outgoing requests per invocation, so a
+ * broadcast to ~60 people has to be spread across invocations.
+ */
+export async function drainBroadcastQueue(api: Api, db: Db, limit: number) {
+  const batch = await db.claimBroadcasts(limit);
+  let sent = 0;
+  let failed = 0;
+  for (let i = 0; i < batch.length; i++) {
+    const { chat_id, text } = batch[i];
+    try {
+      await api.sendMessage(chat_id, `${ANNOUNCEMENT}\n\n${text}`, {
+        entities: [{ type: "bold", offset: 0, length: ANNOUNCEMENT.length }],
+      });
+      sent++;
+    } catch (err) {
+      if (err instanceof GrammyError && err.error_code === 429) {
+        // Rate limited: put this and the rest back for the next cron run.
+        await db.requeueBroadcasts(batch.slice(i));
+        break;
+      }
+      // Blocked the bot, deleted account, etc. Retrying won't help.
+      console.error(`broadcast to ${chat_id} failed:`, err);
+      failed++;
+    }
+  }
+  return { sent, failed };
 }
 
 export function createBot(env: Env): Bot {
@@ -294,6 +331,26 @@ export function createBot(env: Env): Bot {
   admin.command("resume", async (ctx) => {
     await db.setPaused(false);
     await ctx.reply("▶️ Relay resumed.");
+  });
+
+  admin.command("broadcast", async (ctx) => {
+    const text = ctx.match.trim();
+    if (!text) {
+      await ctx.reply("Usage: /broadcast <message>\n\nSends the message to everyone who has started the bot.");
+      return;
+    }
+    const queued = await db.queueBroadcast(text);
+    if (queued === 0) {
+      await ctx.reply("Nobody has started the bot yet, so there's no one to send to.");
+      return;
+    }
+    // Send the first batch now; the cron trigger delivers the rest within a minute or two.
+    const { sent, failed } = await drainBroadcastQueue(ctx.api, db, BROADCAST_INLINE_BATCH);
+    const remaining = queued - sent - failed;
+    let reply = `📢 Broadcast to ${queued} people: ${sent} sent now`;
+    if (failed) reply += `, ${failed} failed (they blocked the bot)`;
+    reply += remaining > 0 ? `, ${remaining} more within ~${Math.ceil(remaining / BROADCAST_CRON_BATCH)} min.` : ".";
+    await ctx.reply(reply);
   });
 
   admin.command("swap", async (ctx) => {

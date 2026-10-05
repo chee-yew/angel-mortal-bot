@@ -96,7 +96,8 @@ Uploading again **replaces** the whole list. People who already joined stay join
 | `/pairs` | Lists every Angel → Mortal pair; ⏳ = hasn't joined yet |
 | `/status` | Participants, how many joined, messages relayed, paused or running |
 | `/missing` | Usernames that haven't started the bot. Use it to chase people. |
-| `/pause` / `/resume` | Stop or start all messaging, e.g. before the event starts or during an issue |
+| `/broadcast <message>` | Sends "📢 Announcement from the organisers" plus your message to everyone who has joined. About 25 go out immediately and the rest within a minute or two. People who haven't joined yet won't get it. |
+| `/pause` / `/resume` | Stop or start all messaging, e.g. before the event starts or during an issue. `/broadcast` still works while paused. |
 | `/swap @old @new` | Someone changed or mistyped their username. Fixes it without re-uploading. |
 | `/myid` | Shows your Telegram ID |
 
@@ -105,4 +106,4 @@ Uploading again **replaces** the whole list. People who already joined stay join
 2. `/pause`, so nobody chats before the event officially starts.
 3. Post **Part 1** of this guide and the bot link in the group chat.
 4. Use `/missing` to chase people until everyone has joined.
-5. `/resume` when the event starts 🎉
+5. `/resume` when the event starts, and `/broadcast` that it's open 🎉

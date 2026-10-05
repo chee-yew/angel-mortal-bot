@@ -183,19 +183,24 @@ export class Db {
     return res.meta.changes;
   }
 
-  async nextBroadcasts(limit: number) {
+  /**
+   * Atomically removes and returns the next `limit` queued deliveries, so the cron and an
+   * in-request drain can never both send the same message.
+   */
+  async claimBroadcasts(limit: number) {
     const { results } = await this.d1
-      .prepare("SELECT id, chat_id, text FROM broadcast_queue ORDER BY id LIMIT ?")
+      .prepare(
+        "DELETE FROM broadcast_queue WHERE id IN (SELECT id FROM broadcast_queue ORDER BY id LIMIT ?) RETURNING id, chat_id, text",
+      )
       .bind(limit)
       .all<QueuedBroadcast>();
-    return results;
+    return results.sort((a, b) => a.id - b.id);
   }
 
-  async deleteBroadcasts(ids: number[]) {
-    if (ids.length === 0) return;
-    await this.d1
-      .prepare(`DELETE FROM broadcast_queue WHERE id IN (${ids.map(() => "?").join(", ")})`)
-      .bind(...ids)
-      .run();
+  /** Puts claimed-but-unsent deliveries back (e.g. after Telegram rate-limits us). */
+  async requeueBroadcasts(items: QueuedBroadcast[]) {
+    if (items.length === 0) return;
+    const stmt = this.d1.prepare("INSERT INTO broadcast_queue (id, chat_id, text) VALUES (?, ?, ?)");
+    await this.d1.batch(items.map((b) => stmt.bind(b.id, b.chat_id, b.text)));
   }
 }

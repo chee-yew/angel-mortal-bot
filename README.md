@@ -19,6 +19,7 @@ The bot lets each participant chat with both through one bot. Messages are re-se
   - upload and validate the pairings list
   - see who hasn't joined
   - check status
+  - broadcast announcements to everyone
   - pause or resume relaying
   - fix a participant's handle
 
