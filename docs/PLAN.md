@@ -68,7 +68,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 - Someone blocks the bot (403): the error is caught and the sender is told it wasn't delivered.
 - Media albums: each item is relayed separately (acceptable).
 - Edited and deleted messages are not synced. The help text says so.
-- The webhook checks `X-Telegram-Bot-Api-Secret-Token`, so nobody else can post fake updates.
+- The webhook checks `X-Telegram-Bot-Api-Secret-Token` in `src/index.ts` **before** the bot is created, so nobody else can post fake updates. A forged request gets 401 and never makes the bot call Telegram, whereas grammY's own check would run only after its `getMe` call.
 - Errors are caught per update and logged with `console.log`, which shows in `wrangler tail`. The webhook always returns 200 so Telegram doesn't retry-storm.
 
 ## Deployment steps (these go in the README; I'll walk you through them)
@@ -79,8 +79,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 5. `npx wrangler d1 execute angel-mortal --remote --file=schema.sql`
 6. `npx wrangler secret put BOT_TOKEN`, then `npx wrangler secret put WEBHOOK_SECRET`.
 7. `npx wrangler deploy`, which gives you the URL `https://<name>.<subdomain>.workers.dev`.
-8. Set the webhook. Either open the bot-provided `/setup` route, or call `https://api.telegram.org/bot<TOKEN>/setWebhook?url=<worker-url>&secret_token=<secret>`.
-9. Message the bot `/start` and get your user ID (the bot prints it for admins-to-be), then put it in `ADMIN_IDS` and redeploy.
+8. Open `https://<worker-url>/setup?key=<WEBHOOK_SECRET>`. This sets the webhook, using the secret and `allowed_updates: ["message"]`, and the participant command menu. The manual `setWebhook` URL is documented as a fallback.
+9. Message the bot `/myid`, put the ID in `ADMIN_IDS`, redeploy, then open `/setup` again so admins get the admin command menu.
 10. `/upload` the pairing CSV, then share the bot link with participants.
 
 ## Version control (git + GitHub)
@@ -106,8 +106,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 7 | Admin commands | ✅ committed |
 | 7b | README + User Guide + Developer Guide | ✅ committed |
 | 7c | Docs website (GitHub Pages) | ✅ pushed |
-| 8 | `/broadcast` queue (+ docs) | 🟡 awaiting your commit |
-| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ⬜ |
+| 8 | `/broadcast` queue (+ docs) | ✅ committed |
+| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | 🟡 awaiting your commit |
 | 10 | Deploy + end-to-end test, final docs pass | ⬜ |
 - Commits are small and frequent, one logical step each. Already done:
   1. Scaffold config

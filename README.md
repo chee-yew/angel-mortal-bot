@@ -8,7 +8,7 @@ Every participant has:
 
 The bot lets each participant chat with both through one bot. Messages are re-sent by the bot itself, so **the angel's identity is never revealed**.
 
-> **Status:** in development, not yet deployable. See the progress tracker in [docs/PLAN.md](docs/PLAN.md).
+> **Status:** feature-complete and deployable; end-to-end testing on Telegram is pending. See the progress tracker in [docs/PLAN.md](docs/PLAN.md).
 
 ## Features
 - Anonymous two-way chat with your Angel and your Mortal, switched with a single button
@@ -51,12 +51,12 @@ npx wrangler secret put BOT_TOKEN
 npx wrangler secret put WEBHOOK_SECRET
 npx wrangler deploy
 ```
-Then register the webhook. Message the bot `/myid`, put your ID in `ADMIN_IDS` in `wrangler.toml` and redeploy. Finally, `/upload` the pairings.
+Then open `https://<your-worker>.workers.dev/setup?key=<WEBHOOK_SECRET>` to register the webhook. Message the bot `/myid`, put your ID in `ADMIN_IDS` in `wrangler.toml`, redeploy, and open `/setup` again. Finally, `/upload` the pairings.
 
 ## Project structure
 ```
 src/
-  index.ts      Worker entry: webhook + cron           (coming in step 9)
+  index.ts      Worker entry: /webhook, /setup, cron
   bot.ts        Commands, admin tools, relay logic
   db.ts         Typed D1 queries
   pairings.ts   Pairing list parser + validation

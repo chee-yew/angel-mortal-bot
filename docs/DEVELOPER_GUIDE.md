@@ -25,7 +25,16 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
 ```
 
 - **No long-running server.** Telegram POSTs each update to the Worker's `/webhook` URL. The Worker handles it and exits.
-- **Webhook security.** Telegram sends the header `X-Telegram-Bot-Api-Secret-Token`. grammY rejects any request whose header doesn't match `WEBHOOK_SECRET`.
+- **Webhook security.** Telegram sends the header `X-Telegram-Bot-Api-Secret-Token` with every update. `src/index.ts` returns `401` for any request where it doesn't match `WEBHOOK_SECRET`, **before** creating the bot. Otherwise grammY would call Telegram's `getMe` first, so a random request could make the bot call Telegram.
+- **Routes:**
+
+  | Route | Purpose |
+  |---|---|
+  | `POST /webhook` | Telegram updates |
+  | `GET /setup?key=<secret>` | One-click webhook and command-menu setup |
+  | `GET /` | Health check ("…is running") |
+
+- **Cron** (`* * * * *` in `wrangler.toml`) calls `scheduled()`, which drains the broadcast queue.
 - **Anonymity** comes from `copyMessage`. Unlike `forwardMessage`, it creates a brand-new message from the bot, with no "Forwarded from" header.
 - **Never-fail webhook.** The first middleware in `createBot` catches and logs every error. The webhook therefore always returns 200, so Telegram never retries the same update in a loop.
 
@@ -91,7 +100,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 | [`src/pairings.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/pairings.ts) | `parsePairings()` turns raw text into `{pairs, errors, warnings}`. Pure, no I/O, and unit-tested. |
 | [`src/db.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/db.ts) | `Db` class. Every SQL query lives here. |
 | [`src/bot.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `deliver()`. |
-| `src/index.ts` | Worker entry: `/webhook`, `/setup`, cron (coming in step 9) |
+| [`src/index.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/index.ts) | Worker entry. `fetch()` handles `/webhook` (secret check, then grammY), `/setup` (webhook and command menus) and `/` (health check); `scheduled()` is the cron that drains broadcasts. The bot instance is cached per isolate, so `getMe` runs once rather than on every update. |
 
 Conventions:
 - **Handles:** always lowercase with no `@`. Normalise any input with `normaliseHandle()`.
@@ -127,7 +136,9 @@ To run the bot locally:
    ```bash
    npx cloudflared tunnel --url http://localhost:8787
    ```
-5. Point the test bot at the tunnel URL (see step 7 of [Deployment](#deployment)).
+5. Open `<tunnel-url>/setup?key=<your WEBHOOK_SECRET>` to point the test bot at your machine.
+
+To test the cron locally, run `npx wrangler dev --test-scheduled` and open `http://localhost:8787/__scheduled`.
 
 To test properly you need **at least 3 Telegram accounts** in a cycle A→B→C→A. Ask friends to help, or use the Telegram Desktop multi-account feature.
 
@@ -174,21 +185,41 @@ npx wrangler deploy
 Note the URL it prints: `https://angel-mortal-bot.<your-subdomain>.workers.dev`.
 
 ### 7. Register the webhook
-Open this in a browser, after replacing the placeholders:
+Open this in a browser, using your Worker URL and your `WEBHOOK_SECRET`:
+```
+https://angel-mortal-bot.<sub>.workers.dev/setup?key=<WEBHOOK_SECRET>
+```
+It should print:
+- `✅ Webhook set to …/webhook`
+- `✅ Participant command menu set`
+- `Webhook info: … last error: none`
+
+What it does:
+- registers the webhook with the secret, receiving only `message` updates
+- sets the `/` command menu for participants
+- sets a fuller menu for each admin in `ADMIN_IDS`
+
+It's safe to open again at any time. Anyone without the secret gets `403`.
+
+> The secret ends up in your browser history. That's acceptable for your own machine, but don't open the link on a shared computer.
+
+<details><summary>Manual alternative (without <code>/setup</code>)</summary>
+
 ```
 https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://angel-mortal-bot.<sub>.workers.dev/webhook&secret_token=<WEBHOOK_SECRET>&allowed_updates=["message"]
 ```
-It should return `"ok":true`. Check it any time with `.../bot<BOT_TOKEN>/getWebhookInfo`.
-
-*(Step 9 will add a `/setup` route that does this, and also sets the bot's command menu, for you.)*
+It should return `"ok":true`. Check it any time with `https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo`.
+</details>
 
 ### 8. Make yourself admin
-Message the bot `/myid`. Put the number in `wrangler.toml`; for several admins, separate the IDs with commas:
-```toml
-[vars]
-ADMIN_IDS = "123456789"
-```
-Then run `npx wrangler deploy` again.
+1. Message the bot `/myid` and note the number.
+2. Put it in `wrangler.toml`. For several admins, separate the IDs with commas:
+   ```toml
+   [vars]
+   ADMIN_IDS = "123456789"
+   ```
+3. Run `npx wrangler deploy` again.
+4. Open the `/setup` link again, so admins get the admin command menu. Each admin must have sent the bot `/start` first.
 
 ### 9. Upload pairings and launch
 Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-checklist).
@@ -218,7 +249,11 @@ Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-c
 | Symptom | Check |
 |---|---|
 | Bot doesn't respond at all | `getWebhookInfo`: does the URL end in `/webhook`? Look at `last_error_message`. Is the secret the same as `WEBHOOK_SECRET`? |
-| `401` in `getWebhookInfo` | The secret token doesn't match. Re-run `setWebhook` with the right secret. |
+| `401` in `getWebhookInfo` | The secret token doesn't match. Open `/setup?key=<WEBHOOK_SECRET>` again. If you changed the secret, redeploy first. |
+| `/setup` says `Forbidden` | The `key` doesn't match the `WEBHOOK_SECRET` you set with `wrangler secret put`. |
+| `/setup` says "Setup failed … 401 Unauthorized" | `BOT_TOKEN` is wrong. Run `npx wrangler secret put BOT_TOKEN` again. |
+| Admin `/` menu missing | Each admin must `/start` the bot, then open `/setup` again |
+| Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |
 | Admin commands say "Unknown command" | Your ID isn't in `ADMIN_IDS`, or you didn't redeploy after editing it. |
 | Errors in the logs | Run `npm run logs` while reproducing. Every failed update is logged as `update <id> failed:`. |
