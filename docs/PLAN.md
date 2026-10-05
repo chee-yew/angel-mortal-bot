@@ -22,6 +22,7 @@ The E Block Angel & Mortal event needs a Telegram bot. Each participant should b
   - Part 2 is for organisers: the admin commands and a launch checklist
 - `docs/DEVELOPER_GUIDE.md`: architecture, relay flow, data model, code tour, local dev, deployment, operations, free-tier limits, troubleshooting
 - `docs/PLAN.md`: a copy of this plan, plus the progress tracker
+- **Docs website:** GitHub Pages with built-in Jekyll, serving `docs/` from `main` at <https://chee-yew.github.io/angel-mortal-bot/>. The setup files are `docs/_config.yml` (Cayman theme) and `docs/index.md` (landing page). I chose this over MarkBind because it needs no build pipeline and the same `.md` files read correctly on GitHub too. Migrating to MarkBind later is easy.
 - **All four docs are kept up to date in every iteration**, whenever a step changes behaviour, commands or setup.
 
 Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WEBHOOK_SECRET`.
@@ -102,8 +103,9 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 5 | Relay core `src/bot.ts` | ✅ pushed |
 | — | Plan copied to `docs/PLAN.md` | ✅ pushed |
 | 6 | Reply routing | ✅ pushed |
-| 7 | Admin commands | 🟡 awaiting your commit |
-| 7b | README + User Guide + Developer Guide | 🟡 awaiting your commit |
+| 7 | Admin commands | ✅ committed |
+| 7b | README + User Guide + Developer Guide | ✅ committed |
+| 7c | Docs website (GitHub Pages) | 🟡 awaiting your commit, then the Pages setting |
 | 8 | Broadcast queue + cron (+ docs) | ⬜ |
 | 9 | Worker entry + `/setup` route (+ docs) | ⬜ |
 | 10 | Deploy + end-to-end test, final docs pass | ⬜ |

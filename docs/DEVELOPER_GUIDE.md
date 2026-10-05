@@ -55,7 +55,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
 
 ## Data model
 
-Defined in [`schema.sql`](../schema.sql):
+Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main/schema.sql):
 
 | Table | Purpose |
 |---|---|
@@ -74,9 +74,9 @@ Defined in [`schema.sql`](../schema.sql):
 
 | File | What's in it |
 |---|---|
-| [`src/pairings.ts`](../src/pairings.ts) | `parsePairings()` turns raw text into `{pairs, errors, warnings}`. Pure, no I/O, and unit-tested. |
-| [`src/db.ts`](../src/db.ts) | `Db` class. Every SQL query lives here. |
-| [`src/bot.ts`](../src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `deliver()`. |
+| [`src/pairings.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/pairings.ts) | `parsePairings()` turns raw text into `{pairs, errors, warnings}`. Pure, no I/O, and unit-tested. |
+| [`src/db.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/db.ts) | `Db` class. Every SQL query lives here. |
+| [`src/bot.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `deliver()`. |
 | `src/index.ts` | Worker entry: `/webhook`, `/setup`, cron (coming in step 9) |
 
 Conventions:
@@ -113,7 +113,7 @@ To run the bot locally:
    ```bash
    npx cloudflared tunnel --url http://localhost:8787
    ```
-5. Point the test bot at the tunnel URL (see [Register the webhook](#7-register-the-webhook)).
+5. Point the test bot at the tunnel URL (see step 7 of [Deployment](#deployment)).
 
 To test properly you need **at least 3 Telegram accounts** in a cycle A→B→C→A. Ask friends to help, or use the Telegram Desktop multi-account feature.
 
@@ -208,6 +208,26 @@ Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-c
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |
 | Admin commands say "Unknown command" | Your ID isn't in `ADMIN_IDS`, or you didn't redeploy after editing it. |
 | Errors in the logs | Run `npm run logs` while reproducing. Every failed update is logged as `update <id> failed:`. |
+
+## Docs website
+
+The `docs/` folder is published by **GitHub Pages** using its built-in Jekyll. There's no build step to maintain.
+
+| File | Role |
+|---|---|
+| `docs/_config.yml` | Site title and theme (`jekyll-theme-cayman`) |
+| `docs/index.md` | Landing page |
+| `docs/*.md` | Each one becomes a page, e.g. `USER_GUIDE.md` → `/USER_GUIDE.html` |
+
+One-time setup: repo **Settings → Pages → Deploy from a branch → `main` / `/docs`**. After that, every push to `main` redeploys within about a minute. Check progress in the **Actions** tab ("pages build and deployment").
+
+When editing docs:
+- **Linking another doc:** use the `.md` name, e.g. `[User Guide](USER_GUIDE.md)`. Pages rewrites it to `.html`, so the link works both on GitHub and on the site.
+- **Linking code outside `docs/`:** use a full URL like `https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts`. A `../` path won't exist on the site.
+- **Heading anchors:** don't link to headings that start with a number. Jekyll drops the leading digits, so `#7-foo` breaks.
+- **Curly braces:** never write two opening curly braces in a row, or an opening brace followed by a percent sign, anywhere in a doc, including inside code. Jekyll treats them as template tags and the build fails.
+
+The published site is **public**, even if the repo is private. Never put tokens or real pairings in `docs/`.
 
 ## Git workflow
 - Branch `main`, pushed to `github.com/chee-yew/angel-mortal-bot`, which stays **private**.

@@ -31,6 +31,8 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 | Telegram delivery | Webhook | No server process to keep alive |
 
 ## Documentation
+📖 **Docs website:** <https://chee-yew.github.io/angel-mortal-bot/> (GitHub Pages, built from `docs/`)
+
 | Doc | For |
 |---|---|
 | [User Guide](docs/USER_GUIDE.md) | Participants (how to chat) and organisers (admin commands) |
