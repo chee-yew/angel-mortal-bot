@@ -41,8 +41,10 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 | [Plan](docs/PLAN.md) | Design decisions and build progress |
 
 ## Quick start (deploy)
-The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
+You need Node.js 20+, a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and a bot token from [@BotFather](https://t.me/BotFather). The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
 ```bash
+git clone https://github.com/chee-yew/angel-mortal-bot.git
+cd angel-mortal-bot
 npm install
 npx wrangler login
 npx wrangler d1 create angel-mortal          # paste the id into wrangler.toml
@@ -52,6 +54,8 @@ npx wrangler secret put WEBHOOK_SECRET
 npx wrangler deploy
 ```
 Then open `https://<your-worker>.workers.dev/setup?key=<WEBHOOK_SECRET>` to register the webhook. Message the bot `/myid`, put your ID in `ADMIN_IDS` in `wrangler.toml`, redeploy, and open `/setup` again. Finally, `/upload` the pairings.
+
+**Running it for your own event?** See [Customising for your event](docs/DEVELOPER_GUIDE.md#customising-for-your-event) for what to rename and replace.
 
 ## Project structure
 ```
@@ -69,4 +73,7 @@ docs/           Plan, user guide, developer guide
 ## Privacy
 - Real pairing lists are **never committed**: `*.csv` is git-ignored, except `pairings.example.csv`.
 - The bot token and webhook secret are stored only as Cloudflare secrets.
-- Keep this repository **private**.
+- This repository is **public**. That's safe because anonymity comes from how the bot relays messages, not from hiding the code. Never commit tokens, real pairings or database exports.
+
+## License
+[MIT](LICENSE)

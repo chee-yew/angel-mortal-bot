@@ -3,6 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
 # Serve at https://angel-mortal-bot.chee-yew.workers.dev
+# (yours will be https://<name>.<your-subdomain>.workers.dev)
 workers_dev = true
 # No per-version preview URLs: only the live deployment should receive webhooks.
 preview_urls = false
@@ -14,10 +15,11 @@ crons = ["* * * * *"]
 
 [vars]
 # Comma-separated Telegram user IDs allowed to use admin commands.
-# Send /myid to the bot to find yours.
+# Send /myid to the bot to find yours, and replace this one.
 ADMIN_IDS = "959835900"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "angel-mortal"
+# Replace with the id printed by `npx wrangler d1 create angel-mortal`.
 database_id = "f622c6d8-cc6e-40be-a8e9-0bd5f37e8834"

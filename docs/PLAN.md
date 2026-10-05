@@ -30,8 +30,9 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 ## Data model (D1)
 - `participants(handle TEXT PK lowercase, user_id INT, chat_id INT, target TEXT DEFAULT 'mortal', joined_at)`: `user_id` stays null until the person /start-s the bot
 - `pairings(angel_handle TEXT PK, mortal_handle TEXT UNIQUE)`
-- `msg_map(recipient_chat_id INT, recipient_msg_id INT, sender_handle TEXT, sender_role TEXT, PK(recipient_chat_id, recipient_msg_id))`: lets a recipient use Telegram's *Reply* on a relayed message, and the reply goes back to the right person
+- `msg_map(recipient_chat_id INT, recipient_msg_id INT, sender_handle TEXT, sender_role TEXT, src_chat_id INT, src_msg_id INT, created_at TEXT, PK(recipient_chat_id, recipient_msg_id))`: lets a recipient use Telegram's *Reply* on a relayed message, and the reply goes back to the right person, threaded under the original
 - `settings(key TEXT PK, value TEXT)`: stores the `paused` flag
+- `broadcast_queue(id INT PK AUTOINCREMENT, chat_id INT, text TEXT)`: pending `/broadcast` deliveries
 
 ## Participant flow
 1. A participant opens the bot and taps **Start**. The bot matches their `@username` (case-insensitive) against the uploaded list, then stores their `user_id`/`chat_id`.
@@ -44,7 +45,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
    - For text and captioned media, the label goes into the text or caption.
    - For stickers, voice notes and video notes, which can't take captions, the bot sends a one-line header first.
 4. **Reply routing:** if the user uses Telegram *Reply* on a relayed message, the bot looks it up in `msg_map` and routes to that person, whatever the current target is.
-5. A ✅ reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
+5. A 👍 reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
 6. Commands: `/angel`, `/mortal` (switch target), `/whoismymortal`, `/help`.
 
 ## Admin commands (only for user IDs listed in `ADMIN_IDS`)
@@ -69,7 +70,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 - Media albums: each item is relayed separately (acceptable).
 - Edited and deleted messages are not synced. The help text says so.
 - The webhook checks `X-Telegram-Bot-Api-Secret-Token` in `src/index.ts` **before** the bot is created, so nobody else can post fake updates. A forged request gets 401 and never makes the bot call Telegram, whereas grammY's own check would run only after its `getMe` call.
-- Errors are caught per update and logged with `console.log`, which shows in `wrangler tail`. The webhook always returns 200 so Telegram doesn't retry-storm.
+- Errors are caught per update and logged with `console.error`, which shows in `wrangler tail`. The webhook always returns 200 so Telegram doesn't retry-storm.
 
 ## Deployment steps (these go in the README; I'll walk you through them)
 1. In @BotFather: `/newbot`, then copy the token. Optionally set the description, commands list and profile picture.
@@ -84,60 +85,26 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 10. `/upload` the pairing CSV, then share the bot link with participants.
 
 ## Version control (git + GitHub)
-- Local folder: `C:\Users\wongc\angel-mortal-bot` (git repo, branch `main`). Remote: `https://github.com/chee-yew/angel-mortal-bot.git`. The remote already has 1 commit, probably a README or licence, so its history has to be merged once.
-- **Division of work:** Claude writes the code for one step, then **stops**. It leaves the changes uncommitted, says what changed, and suggests a commit message. **You** review, `git add`, `git commit` with your own message, and `git push`, then tell Claude to continue. Claude never commits, pushes or runs `gh`.
-- **Every iteration ends with a summary:**
-  - files changed and what each change does
-  - how it was verified
-  - a suggested commit message
-
-  Claude also updates the progress tracker below and keeps `docs/PLAN.md` in sync with this plan.
+- Branch `main`, pushed to the **public** repo `https://github.com/chee-yew/angel-mortal-bot`. Being public is safe: anonymity comes from the relay design, not from hiding the code.
+- Commits are small and frequent, one logical step each.
+- Each iteration ends with a summary (files changed, how it was verified, a suggested commit message), and this plan and its progress tracker are kept up to date.
+- `.gitignore` excludes `node_modules/`, `.wrangler/`, `.dev.vars`, DB exports (`backup*.sql`) and `*.csv`, except `pairings.example.csv`. **Real pairings are never committed** because they reveal who is whose angel. The bot token and webhook secret live only in Cloudflare secrets.
 
 ### Progress tracker
 | # | Step | Status |
 |---|------|--------|
-| 1 | Scaffold config | ✅ pushed |
-| 2 | Schema + pairing parser + tests | ✅ pushed |
-| 3 | `.gitattributes` (LF) | ✅ pushed |
-| 4 | DB layer `src/db.ts` | ✅ pushed |
-| 5 | Relay core `src/bot.ts` | ✅ pushed |
-| — | Plan copied to `docs/PLAN.md` | ✅ pushed |
-| 6 | Reply routing | ✅ pushed |
-| 7 | Admin commands | ✅ committed |
-| 7b | README + User Guide + Developer Guide | ✅ committed |
-| 7c | Docs website (GitHub Pages) | ✅ pushed |
-| 8 | `/broadcast` queue (+ docs) | ✅ committed |
-| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ✅ pushed |
-| 10 | Deploy + end-to-end test, final docs pass | 🟡 in progress. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1 and cron live. Waiting on the TLS cert for the new subdomain, then `/setup`, admin, and E2E tests. |
-- Commits are small and frequent, one logical step each. Already done:
-  1. Scaffold config
-  2. Schema + pairing parser + tests
-
-  Still to do:
-  3. `.gitattributes` (LF line endings)
-  4. DB layer (`src/db.ts`)
-  5. Relay core (`src/bot.ts` participant flow + `copyMessage` delivery)
-  6. Reply routing
-  7. Admin commands
-  8. Broadcast queue + cron
-  9. Worker entry + `/setup` route (`src/index.ts`)
-  10. README + participant guide
-
-  After each one I tell you it's ready, and you push it with `git push`.
-- `.gitignore` already excludes `node_modules/`, `.wrangler/`, `.dev.vars` and `*.csv`, except `pairings.example.csv`. **Real pairings are never committed** because they reveal who is whose angel. The bot token and webhook secret live only in Cloudflare secrets.
-
-### One-time guide for you: link this folder to GitHub
-Run these in `C:\Users\wongc\angel-mortal-bot`:
-```
-git remote add origin https://github.com/chee-yew/angel-mortal-bot.git
-git pull origin main --allow-unrelated-histories --no-rebase
-git push -u origin main
-```
-- The `git pull` merges the repo's existing first commit into the local history.
-  - If it opens an editor for the merge message, save and close it.
-  - If it reports a conflict (for example in `.gitignore` or `README.md`), keep both sides' lines, then run `git add <file>` and `git commit`.
-- After that, every later push is just `git push`.
-- Check the result with `git log --oneline --graph` and on the repo page on GitHub. Keep the repo **private** (Settings → General → Danger Zone → Change visibility), so participants can't read the code.
+| 1 | Scaffold config | ✅ done |
+| 2 | Schema + pairing parser + tests | ✅ done |
+| 3 | `.gitattributes` (LF) | ✅ done |
+| 4 | DB layer `src/db.ts` | ✅ done |
+| 5 | Relay core `src/bot.ts` | ✅ done |
+| 6 | Reply routing | ✅ done |
+| 7 | Admin commands | ✅ done |
+| 7b | README + User Guide + Developer Guide | ✅ done |
+| 7c | Docs website (GitHub Pages) | ✅ done |
+| 8 | `/broadcast` queue (+ docs) | ✅ done |
+| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ✅ done |
+| 10 | Deploy + end-to-end test, final docs pass | 🟡 in progress. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1, cron and the admin ID configured; docs refreshed for the public repo, with a licence and customisation guide. Remaining: end-to-end test on Telegram. |
 
 ## Verification
 - `npx tsc --noEmit` passes.

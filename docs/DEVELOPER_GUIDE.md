@@ -8,6 +8,7 @@ Contents:
 - [Code tour](#code-tour)
 - [Local development](#local-development)
 - [Deployment](#deployment)
+- [Customising for your event](#customising-for-your-event)
 - [Operations](#operations)
 - [Free-tier limits](#free-tier-limits)
 - [Troubleshooting](#troubleshooting)
@@ -153,8 +154,11 @@ In Telegram, open **@BotFather** → `/newbot` → pick a name and a username �
 ### 2. Cloudflare account
 Sign up at <https://dash.cloudflare.com/sign-up>. The free plan is enough and no card is needed.
 
-### 3. Install and log in
+### 3. Get the code and log in
+Prerequisite: Node.js 20 or newer.
 ```bash
+git clone https://github.com/chee-yew/angel-mortal-bot.git
+cd angel-mortal-bot
 npm install
 npx wrangler login
 ```
@@ -224,6 +228,23 @@ It should return `"ok":true`. Check it any time with `https://api.telegram.org/b
 ### 9. Upload pairings and launch
 Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-checklist).
 
+## Customising for your event
+
+The code is written for the E Block event. If you're running your own, change these before deploying:
+
+| What | Where |
+|---|---|
+| D1 `database_id` | `wrangler.toml`. **Required:** the committed id belongs to the original author's account, so deploying with it fails. Replace it with yours from [step 4](#deployment). |
+| `ADMIN_IDS` | `wrangler.toml`. **Required:** replace the committed ID with your own, from step 8. |
+| Event name in the bot's messages | `HELP` in `src/bot.ts` ("E Block Angel & Mortal bot") |
+| Button labels, help and admin text | `BTN_*`, `HELP`, `ADMIN_HELP` and `ANNOUNCEMENT` in `src/bot.ts` |
+| `/` menu descriptions | `USER_COMMANDS` and `ADMIN_COMMANDS` in `src/index.ts` |
+| Worker name, which sets your URL | `name` in `wrangler.toml`, plus the comment above `workers_dev` that shows the original URL |
+| Database name | `database_name` in `wrangler.toml`. If you change it, use the new name in every `wrangler d1` command in this guide. |
+| Docs and docs site | `README.md`, `docs/index.md`, `docs/_config.yml` (site title), the event name in `docs/USER_GUIDE.md`, and the `github.com/chee-yew/...` links in this guide |
+
+The pairing format, commands and relay behaviour don't depend on the event, so nothing else needs changing.
+
 ## Operations
 
 | Task | Command |
@@ -241,7 +262,9 @@ Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-c
 | CPU time | 10 ms / request | Tiny; network waits don't count |
 | Outgoing requests (subrequests) | 50 / request | ~3–6 per message. This is why `/broadcast` uses a queue. |
 | D1 queries | 50 / request | ~4–6 per message |
-| D1 storage | 5 GB | A few MB |
+| D1 rows read | 5 million / day | A few per message |
+| D1 rows written | 100,000 / day | ~3–4 per message, counting index updates |
+| D1 storage | 500 MB per database, 5 GB per account | A few MB |
 | Telegram | ~30 messages/sec globally, 1/sec per chat | Fine |
 
 ## Troubleshooting
@@ -276,10 +299,10 @@ When editing docs:
 - **Heading anchors:** don't link to headings that start with a number. Jekyll drops the leading digits, so `#7-foo` breaks.
 - **Curly braces:** never write two opening curly braces in a row, or an opening brace followed by a percent sign, anywhere in a doc, including inside code. Jekyll treats them as template tags and the build fails.
 
-The published site is **public**, even if the repo is private. Never put tokens or real pairings in `docs/`.
+The published site is **public**, like the repo. Never put tokens or real pairings in `docs/`.
 
 ## Git workflow
-- Branch `main`, pushed to `github.com/chee-yew/angel-mortal-bot`, which stays **private**.
+- Branch `main`, pushed to `github.com/chee-yew/angel-mortal-bot`, which is **public**. Anyone can read the code, so everything private stays out of the repo (see below).
 - Small commits, one logical change each.
 - Never commit:
   - real pairing CSVs
