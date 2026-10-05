@@ -1,9 +1,18 @@
 import type { Participant, Role } from "./db";
 
-/** Each participant has two tabs (topics) in their chat with the bot, one per partner. */
-export const TAB_NAME: Record<Role, string> = {
-  angel: "😇 My Angel",
-  mortal: "🙂 My Mortal",
+/**
+ * Each participant has two tabs (topics) in their chat with the bot, one per partner. The name is
+ * the header shown while chatting, so it spells out who's who; the Mortal tab names its person.
+ */
+export function tabName(role: Role, mortalHandle: string | null): string {
+  if (role === "angel") return "😇 Angel: secret (cares for you)";
+  return mortalHandle ? `🙂 Mortal: @${mortalHandle} (you care for them)` : "🙂 Mortal: none assigned";
+}
+
+/** How messages refer to each tab. */
+export const TAB_LABEL: Record<Role, string> = {
+  angel: "😇 Angel tab",
+  mortal: "🙂 Mortal tab",
 };
 
 /** Topic icon colours; Telegram only accepts a fixed set. */

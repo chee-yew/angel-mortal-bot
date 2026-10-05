@@ -3,7 +3,7 @@ import type { Message } from "grammy/types";
 import { parseAdminIds } from "./config";
 import { Db, type Participant, type Role } from "./db";
 import { isValidHandle, normaliseHandle, parsePairings } from "./pairings";
-import { ROLES, TAB_COLOR, TAB_NAME, roleForThread, threadIdFor } from "./topics";
+import { ROLES, TAB_COLOR, TAB_LABEL, roleForThread, tabName, threadIdFor } from "./topics";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -19,12 +19,12 @@ const helpText = (eventName: string) => `👼 ${eventName} bot
 You have a Mortal (you know who they are, and you welfare them) and an Angel (they welfare you, and they're a secret!).
 
 This chat has two tabs:
-• ${TAB_NAME.angel}: what you send there goes to your Angel, and their messages arrive there.
-• ${TAB_NAME.mortal}: what you send there goes to your Mortal, and their messages arrive there.
+• ${TAB_LABEL.angel}: chat with your Angel, the secret person who takes care of YOU.
+• ${TAB_LABEL.mortal}: chat with your Mortal, the person YOU take care of. Their username is on the tab.
 
 • Send anything in a tab: text, photos, stickers, voice notes, videos, files.
 • To answer a specific message, use Telegram's Reply on it.
-• 👍 on your message means it was delivered.
+• If a message can't be delivered, I'll reply to it with a warning. No warning means it was delivered.
 
 Can't see the tabs? Update Telegram, or use the app on your phone. Some computer versions of Telegram don't show them yet.
 
@@ -74,18 +74,36 @@ function chunkLines(lines: string[], limit = 4000): string[] {
 }
 
 /**
- * Creates whichever of `p`'s two tabs don't exist yet and returns `p` with both thread ids.
- * `p` must have started the bot.
+ * Creates whichever of `p`'s two tabs don't exist yet, renames any whose name is out of date (the
+ * Mortal tab names their mortal, so it changes when the pairings do), and returns `p` with both
+ * thread ids. `p` must have started the bot.
  */
 async function ensureTabs(api: Api, db: Db, p: Participant): Promise<Participant> {
+  const mortal = await db.partner(p.handle, "mortal");
   for (const role of ROLES) {
-    if (threadIdFor(p, role) !== null) continue;
-    const topic = await api.createForumTopic(p.chat_id!, TAB_NAME[role], { icon_color: TAB_COLOR[role] });
-    if (!(await db.setThreadId(p.handle, role, topic.message_thread_id))) {
-      // A concurrent request created this tab first: keep theirs, drop ours.
-      await api.deleteForumTopic(p.chat_id!, topic.message_thread_id).catch(() => {});
+    const name = tabName(role, mortal?.handle ?? null);
+    const threadId = threadIdFor(p, role);
+
+    if (threadId === null) {
+      const topic = await api.createForumTopic(p.chat_id!, name, { icon_color: TAB_COLOR[role] });
+      if (!(await db.setThreadId(p.handle, role, topic.message_thread_id, name))) {
+        // A concurrent request created this tab first: keep theirs, drop ours.
+        await api.deleteForumTopic(p.chat_id!, topic.message_thread_id).catch(() => {});
+      }
+      p = (await db.byHandle(p.handle)) ?? p;
+      continue;
     }
-    p = (await db.byHandle(p.handle)) ?? p;
+
+    const current = role === "angel" ? p.angel_tab_name : p.mortal_tab_name;
+    if (current === name) continue;
+    try {
+      await api.editForumTopic(p.chat_id!, threadId, { name });
+      await db.setTabName(p.handle, role, name);
+      p = role === "angel" ? { ...p, angel_tab_name: name } : { ...p, mortal_tab_name: name };
+    } catch (err) {
+      // An out-of-date name is cosmetic: never let it block a message. It's retried next time.
+      console.error(`renaming @${p.handle}'s ${role} tab failed:`, err);
+    }
   }
   return p;
 }
@@ -170,7 +188,12 @@ export function createBot(env: Env): Bot {
     } catch (err) {
       console.error(`update ${ctx.update.update_id} failed:`, err);
       if (ctx.chat?.type === "private") {
-        await ctx.reply("⚠️ Something went wrong on my side, so that didn't go through. Please try again.").catch(() => {});
+        const failed = ctx.msg?.message_id;
+        await ctx
+          .reply("⚠️ Something went wrong on my side, so that didn't go through. Please try again.", {
+            reply_parameters: failed ? { message_id: failed, allow_sending_without_reply: true } : undefined,
+          })
+          .catch(() => {});
       }
     }
   });
@@ -242,9 +265,11 @@ export function createBot(env: Env): Bot {
     }
 
     const intro: Record<Role, string> = {
-      angel: "Messages you send in this tab go to your Angel, and their messages to you appear here.",
+      angel:
+        "😇 Your Angel is the secret person taking care of YOU. Messages you send in this tab go to them, and theirs arrive here.",
       mortal: mortal
-        ? `Messages you send in this tab go to your Mortal, @${mortal.handle}, anonymously. Their replies appear here.`
+        ? `🙂 This is your Mortal, @${mortal.handle}: the person YOU take care of. They don't know it's you. ` +
+          "Messages you send in this tab go to them anonymously, and their replies arrive here."
         : "You don't have a mortal assigned yet.",
     };
     for (const role of ROLES) {
@@ -254,7 +279,7 @@ export function createBot(env: Env): Bot {
     await ctx.reply(
       `Welcome, @${me.handle}! 🎉\n\n` +
         (mortal ? `Your Mortal is @${mortal.handle}. Take good care of them!\n\n` : "") +
-        `Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to start chatting.\n\n${HELP}`,
+        `Open the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to start chatting.\n\n${HELP}`,
       // Clears the old mode-switching keyboard for anyone who used an earlier version of the bot.
       { reply_markup: { remove_keyboard: true } },
     );
@@ -438,32 +463,36 @@ export function createBot(env: Env): Bot {
       return;
     }
 
-    const me = await requireParticipant(ctx);
-    if (!me) return;
+    const participant = await requireParticipant(ctx);
+    if (!participant) return;
+    // Creates their tabs if they joined by messaging instead of /start, and keeps the names current.
+    const me = await ensureTabs(ctx.api, db, participant);
+
+    /** Tells the sender this message wasn't delivered, as a Reply to it so they can see which one. */
+    const warn = (text: string) =>
+      ctx.reply(text, { reply_parameters: { message_id: msg.message_id, allow_sending_without_reply: true } });
 
     // The tab the message was typed in decides who it's for.
     const role = roleForThread(me, msg.is_topic_message ? msg.message_thread_id : undefined);
     if (!role) {
-      // Someone who joined by messaging instead of /start has no tabs yet; make sure they exist.
-      await ensureTabs(ctx.api, db, me);
-      await ctx.reply(
-        `Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to send a message. This one wasn't sent.\n\n` +
+      await warn(
+        `Open the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to send a message. This one wasn't sent.\n\n` +
           "Can't see the tabs? Use Telegram on your phone. Some computer versions of Telegram don't show them yet.",
       );
       return;
     }
     if (await db.isPaused()) {
-      await ctx.reply("⏸ Messaging is paused by the organisers right now. Please try again later.");
+      await warn("⏸ Not delivered: messaging is paused by the organisers right now. Please try again later.");
       return;
     }
 
     const dest = await db.partner(me.handle, role);
     if (!dest) {
-      await ctx.reply(`You don't have ${article(role)} assigned. Contact the organiser.`);
+      await warn(`⚠️ Not delivered: you don't have ${article(role)} assigned. Contact the organiser.`);
       return;
     }
     if (dest.chat_id === null) {
-      await ctx.reply(`⚠️ Your ${role} hasn't started the bot yet, so this message was NOT delivered. Try again later.`);
+      await warn(`⚠️ Not delivered: your ${role} hasn't started the bot yet. Try again later.`);
       return;
     }
 
@@ -481,24 +510,25 @@ export function createBot(env: Env): Bot {
       sentIds = await deliverToTab(ctx.api, db, msg, dest, flip(role), replyTo);
     } catch (err) {
       if (err instanceof GrammyError && err.error_code === 403) {
-        await ctx.reply(`⚠️ Not delivered: your ${role} has blocked or stopped the bot.`);
+        await warn(`⚠️ Not delivered: your ${role} has blocked or stopped the bot.`);
         return;
       }
       if (err instanceof GrammyError && err.error_code === 400) {
-        await ctx.reply("⚠️ Sorry, I can't relay this kind of message.");
+        await warn("⚠️ Not delivered: I can't relay this kind of message.");
         return;
       }
       if (err instanceof GrammyError && err.error_code === 429) {
         const wait = err.parameters.retry_after ?? 5;
-        await ctx.reply(`⚠️ Not delivered: you're sending too fast. Wait ${wait}s, then send this one again.`);
+        await warn(`⚠️ Not delivered: you're sending too fast. Wait ${wait}s, then send this one again.`);
         return;
       }
       console.error(`relay of update ${ctx.update.update_id} failed:`, err);
-      await ctx.reply("⚠️ Not delivered because of a temporary error. Please send it again.");
+      await warn("⚠️ Not delivered because of a temporary error. Please send it again.");
       return;
     }
 
-    // Delivered: from here on, never make the sender think it failed (they'd resend a duplicate).
+    // Delivered, so no reply to the sender. From here on, never make them think it failed
+    // (they'd resend a duplicate).
     try {
       await db.saveMap(dest.chat_id, sentIds, {
         sender_handle: me.handle,
@@ -510,7 +540,6 @@ export function createBot(env: Env): Bot {
       // Only cost: a Reply to this message won't show as a reply on the other side.
       console.error(`saveMap for update ${ctx.update.update_id} failed:`, err);
     }
-    await ctx.react("👍").catch(() => {});
   });
 
   return bot;

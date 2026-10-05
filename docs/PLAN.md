@@ -49,7 +49,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
    - For text and captioned media, the label goes into the text or caption.
    - For stickers, voice notes and video notes, which can't take captions, the bot sends a one-line header first.
 4. **Reply routing:** if the user uses Telegram *Reply* on a relayed message, the bot looks it up in `msg_map` and routes to that person, whatever the current target is.
-5. A 👍 reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
+5. *(Since step 11f there's no 👍; failures are replies quoting the message.)* A 👍 reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
 6. Commands: `/angel`, `/mortal` (switch target), `/whoismymortal`, `/help`.
 
 ## Next event: Angel and Mortal tabs
@@ -82,10 +82,15 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 - **Creating tabs:** `ensureTopics()` calls `createForumTopic` for each missing tab (angel yellow `0xFFD67E`, mortal blue `0x6FB9F0`) and saves the ID only if the column is still empty. If two requests race, the loser deletes its duplicate tab. It runs on `/start`, and lazily before delivering to someone whose tabs are missing.
 - **Recovering a lost tab:** if a send fails with "thread not found", the bot clears that ID, recreates the tab and retries once.
 - **Routing:** the tab a message was sent in decides the destination (`roleForThread()`). A message from my Mortal tab lands in my mortal's Angel tab, and the reverse (`flip()`). All existing handling stays: not joined, paused, 403/400/429, and saving to `msg_map`.
-- **Tab names never include handles**, so re-uploading pairings never needs a rename.
+- ~~Tab names never include handles~~ **Changed in step 11f:** tab names now include the role and the mortal's handle, and are renamed automatically. See below.
 - **`/unbind`** also clears both tab IDs, so a newly bound account gets fresh tabs.
 - **Pure helpers** in `src/topics.ts` (`roleForThread`, `threadIdFor`, tab names and colours) are unit-tested without grammY.
 - **Removed:** the persistent keyboard, `BTN_*`, `setTarget`, the "Now messaging…" confirmations and the label/header logic in `deliver()`.
+
+### Update after the pilot (step 11f)
+- **No 👍 reaction.** A delivered message gets nothing. Every failure is posted as a Reply to the sender's message, so the warning quotes exactly which message wasn't delivered.
+- **Tab names explain the roles:** `😇 Angel: secret (cares for you)` and `🙂 Mortal: @handle (you care for them)`. They're stored in `angel_tab_name`/`mortal_tab_name` (`migrations/0003_tab_names.sql`), and `ensureTabs()` renames a tab with `editForumTopic` whenever its stored name is out of date, for example after a re-upload.
+- The intro messages spell out "the person YOU take care of" and "the secret person taking care of YOU".
 
 ### Risks
 - **Computer apps (found in the pilot):** Telegram Desktop and Web don't show bot tabs reliably yet, so the bot's messages and the User Guide tell participants to use the phone app.
@@ -156,6 +161,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
+| 11f | After the pilot: no 👍, failure warnings quote the failed message, tab names with role and mortal handle (auto-renamed), `migrations/0003_tab_names.sql` | ✅ done (simulated; check on a phone) |
 | 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 Docs done. Pilot so far: tabs show on the phone app; Telegram Desktop shows only the main chat ("Off-topic message"), and Web showed them once, then not. Participants are told to use the phone app. Still to check: a message between two accounts both ways. |
 
 ## Verification

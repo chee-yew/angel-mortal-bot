@@ -37,7 +37,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
   | `GET /` | Health check ("…is running") |
 
 - **Cron** (`* * * * *` in `wrangler.toml`) calls `scheduled()`, which drains the broadcast queue.
-- **Tabs.** Each participant's "😇 My Angel" and "🙂 My Mortal" tabs are forum topics in their private chat with the bot (Bot API 9.3+). The bot creates them with `createForumTopic`, which only works when **Threaded Mode** is on in BotFather.
+- **Tabs.** Each participant's Angel and Mortal tabs are forum topics in their private chat with the bot (Bot API 9.3+). The bot creates them with `createForumTopic`, which only works when **Threaded Mode** is on in BotFather.
 - **Anonymity** comes from `copyMessage`. Unlike `forwardMessage`, it creates a brand-new message from the bot, with no "Forwarded from" header.
 - **Never-fail webhook.** The first middleware in `createBot` catches and logs every error. The webhook therefore always returns 200, so Telegram never retries the same update in a loop.
 
@@ -54,7 +54,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
    - `deliver()` is a single `copyMessage` with `message_thread_id`. There's no label, because the tab already says who it's from.
    - If Telegram says the thread no longer exists, the tab ID is cleared, the tab recreated and the send retried once.
 6. Every message id created in the recipient's chat goes into `msg_map`, so replies can be quoted.
-7. The bot reacts 👍 on the sender's message.
+7. A delivered message gets **no** reply or reaction. Every "not delivered" outcome below is sent as a Reply to the sender's message (the relay handler's `warn()`), so the warning quotes the exact message that failed. The same goes for paused, no partner, partner not joined, and typing outside the tabs.
 
    | Error | What the sender is told |
    |---|---|
@@ -63,7 +63,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
    | 429 (sending too fast) | "not delivered", wait N seconds and resend |
    | Anything else | "not delivered because of a temporary error", resend |
 
-   Once `deliver()` has succeeded, the sender always gets 👍. If saving to `msg_map` fails at that point, the error is only logged: a Reply to that message just won't show as a reply on the other side. Telling the sender it failed would make them send a duplicate. Errors anywhere else in an update are caught by the first middleware, which logs them and tells the user to try again.
+   Once `deliver()` has succeeded, the sender gets no warning. If saving to `msg_map` fails at that point, the error is only logged: a Reply to that message just won't show as a reply on the other side. Telling the sender it failed would make them send a duplicate. Errors anywhere else in an update are caught by the first middleware, which logs them and replies to the user's message asking them to try again.
 
 ## Broadcasts
 
@@ -84,7 +84,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 
 | Table | Purpose |
 |---|---|
-| `participants` | `handle` (lowercase, PK), `user_id`/`chat_id` (null until /start), `joined_at`, `angel_thread_id`/`mortal_thread_id` (their two tabs, null until created) |
+| `participants` | `handle` (lowercase, PK), `user_id`/`chat_id` (null until /start), `joined_at`, `angel_thread_id`/`mortal_thread_id` (their two tabs, null until created), `angel_tab_name`/`mortal_tab_name` (each tab's current name) |
 | `pairings` | `angel_handle` (PK) → `mortal_handle` (unique) |
 | `pairings_backup` | The pairings as they were before the last `/upload` or `/undoupload`, so `/undoupload` can restore them |
 | `msg_map` | `(recipient_chat_id, recipient_msg_id)` → original sender, their role relative to the recipient, and the source message, for reply routing |
@@ -101,9 +101,12 @@ Before replacing, `/upload` copies the current pairings to `pairings_backup` in 
 `/unbind @handle` clears `user_id`, `chat_id`, `joined_at` and both tab IDs for that handle, and deletes the `msg_map` rows for messages the bound account sent or received, so replies to them can't route to whoever joins next.
 
 ## Tabs
-- `ensureTabs()` creates each missing tab and saves its ID with `Db.setThreadId()`, which only writes if the column is still empty. If two requests create the same tab at once, the loser deletes its duplicate.
-- Tabs are created by `/start`, by `/angel` and `/mortal`, when someone types in General, and before delivering to someone whose tab is missing.
-- Tab names never contain handles, so re-uploading pairings never needs a rename. The mortal's handle appears in the intro message that `/start` posts.
+- **Names** come from `tabName()` in `src/topics.ts`: `😇 Angel: secret (cares for you)` and `🙂 Mortal: @handle (you care for them)` (or `🙂 Mortal: none assigned`). The name is the header shown while chatting, so it explains the roles.
+- `ensureTabs()` creates each missing tab and saves its ID and name with `Db.setThreadId()`, which only writes if the column is still empty. If two requests create the same tab at once, the loser deletes its duplicate.
+- It also **renames** any tab whose stored name differs from what `tabName()` gives now (`editForumTopic`, then `Db.setTabName()`). This happens after a re-upload changes someone's mortal, and on tabs from older versions, whose name is `NULL`. A failed rename is only logged, so it never blocks a message, and it's retried the next time.
+- It runs for the sender of every relayed message and for the recipient before delivery, so names catch up as soon as either person is active.
+- Tabs are created by `/start`, by `/angel` and `/mortal`, by any message the person sends, and before delivering to someone whose tab is missing.
+- The intro message that `/start` posts in each tab spells out the role again. It isn't updated after a re-upload, but the tab name is.
 
 ## Code tour
 
@@ -279,7 +282,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Redeploy after code change | `npx wrangler deploy` |
 | Query the DB | `npx wrangler d1 execute angel-mortal --remote --command "SELECT * FROM participants"` |
 | Apply schema changes after pulling a new version | `npx wrangler d1 execute angel-mortal --remote --file=schema.sql`. It only creates missing tables, so it's safe to re-run and keeps your data. |
-| Upgrade a database created before tabs existed | `npx wrangler d1 execute angel-mortal --remote --file=migrations/0002_topics.sql`, once. A database created from the current `schema.sql` doesn't need it. |
+| Upgrade a database created by an older version | Run each migration it hasn't had yet, once and in order: `npx wrangler d1 execute angel-mortal --remote --file=migrations/0002_topics.sql` (tabs), then `…--file=migrations/0003_tab_names.sql` (tab names). A database created from the current `schema.sql` needs neither. |
 | Back up the DB | `npx wrangler d1 export angel-mortal --remote --output backup.sql` (git-ignore it, because it contains pairings) |
 
 ## Free-tier limits
@@ -307,7 +310,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | `/start` says "couldn't set up your Angel and Mortal tabs" | Threaded Mode is off in BotFather (open `/setup` to check), or the participant's Telegram app is too old to support it. |
 | Participant can't see the tabs | Telegram Desktop and Web don't show bot tabs reliably yet (seen in the pilot: Web showed them, then didn't). Have them use the phone app, updated. If the tabs are missing on the phone too, send `/start` again. |
-| "no such column: angel_thread_id" in the logs | The database predates tabs. Run `migrations/0002_topics.sql` (see [Operations](#operations)). |
+| "no such column: angel_thread_id" or "…angel_tab_name" in the logs | The database predates that feature. Run the missing migration (see [Operations](#operations)). |
 | The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
 | `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |

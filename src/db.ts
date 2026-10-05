@@ -9,11 +9,18 @@ export interface Participant {
   joined_at: string | null;
   angel_thread_id: number | null;
   mortal_thread_id: number | null;
+  angel_tab_name: string | null;
+  mortal_tab_name: string | null;
 }
 
 const THREAD_COLUMN: Record<Role, string> = {
   angel: "angel_thread_id",
   mortal: "mortal_thread_id",
+};
+
+const TAB_NAME_COLUMN: Record<Role, string> = {
+  angel: "angel_tab_name",
+  mortal: "mortal_tab_name",
 };
 
 export interface MsgMapRow {
@@ -62,16 +69,21 @@ export class Db {
   }
 
   /**
-   * Saves the thread id of `handle`'s tab for their `role`, unless one is already saved.
+   * Saves the thread id and name of `handle`'s tab for their `role`, unless one is already saved.
    * Returns false if another request saved one first (the caller should delete its duplicate tab).
    */
-  async setThreadId(handle: string, role: Role, threadId: number) {
+  async setThreadId(handle: string, role: Role, threadId: number, name: string) {
     const col = THREAD_COLUMN[role];
     const res = await this.d1
-      .prepare(`UPDATE participants SET ${col} = ? WHERE handle = ? AND ${col} IS NULL`)
-      .bind(threadId, handle)
+      .prepare(`UPDATE participants SET ${col} = ?, ${TAB_NAME_COLUMN[role]} = ? WHERE handle = ? AND ${col} IS NULL`)
+      .bind(threadId, name, handle)
       .run();
     return res.meta.changes === 1;
+  }
+
+  /** Records the name `handle`'s tab for their `role` was renamed to. */
+  async setTabName(handle: string, role: Role, name: string) {
+    await this.d1.prepare(`UPDATE participants SET ${TAB_NAME_COLUMN[role]} = ? WHERE handle = ?`).bind(name, handle).run();
   }
 
   /** Forgets a tab that no longer exists, if it's still the saved one, so it can be recreated. */
@@ -223,7 +235,7 @@ export class Db {
       this.d1.prepare("DELETE FROM msg_map WHERE sender_handle = ? OR recipient_chat_id = ?").bind(handle, p.chat_id),
       this.d1
         .prepare(
-          "UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL, angel_thread_id = NULL, mortal_thread_id = NULL WHERE handle = ?",
+          "UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL, angel_thread_id = NULL, mortal_thread_id = NULL, angel_tab_name = NULL, mortal_tab_name = NULL WHERE handle = ?",
         )
         .bind(handle),
     ]);

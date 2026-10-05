@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { roleForThread, threadIdFor } from "../src/topics.ts";
+import { roleForThread, tabName, threadIdFor } from "../src/topics.ts";
+
+assert.equal(tabName("mortal", "bob_lim"), "🙂 Mortal: @bob_lim (you care for them)");
+assert.equal(tabName("mortal", null), "🙂 Mortal: none assigned");
+assert.equal(tabName("angel", "bob_lim"), "😇 Angel: secret (cares for you)"); // never names anyone
+for (const name of [tabName("mortal", "a".repeat(32)), tabName("angel", null)]) assert.ok(name.length <= 128); // Telegram's limit
 
 const p = { angel_thread_id: 11, mortal_thread_id: 22 };
 assert.equal(threadIdFor(p, "angel"), 11);

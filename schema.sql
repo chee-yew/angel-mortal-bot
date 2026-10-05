@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS participants (
   chat_id   INTEGER,
   joined_at TEXT,
   angel_thread_id  INTEGER,                   -- their "😇 My Angel" tab (topic) in the bot chat
-  mortal_thread_id INTEGER                    -- their "🙂 My Mortal" tab
+  mortal_thread_id INTEGER,                   -- their "🙂 Mortal" tab
+  angel_tab_name   TEXT,                      -- the name each tab currently has, so it can be
+  mortal_tab_name  TEXT                       -- renamed when the pairings change
 );
 
 -- angel_handle welfares mortal_handle.

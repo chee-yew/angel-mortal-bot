@@ -16,7 +16,7 @@ This bot lets you chat with **both**. Your Mortal never finds out you're their A
 1. **Use Telegram on your phone, updated to the latest version.** The bot gives you two chat tabs. The phone apps show them; some computer versions of Telegram (Desktop and Web) don't show them reliably yet.
 2. **Make sure you have a Telegram username.** Go to Settings → Username. The organisers matched you using it, so don't change it during the event. If you must change it, tell an organiser.
 3. Open the bot and tap **Start**.
-4. The bot welcomes you, tells you who your Mortal is, and adds **two tabs** to the chat: **😇 My Angel** and **🙂 My Mortal**.
+4. The bot welcomes you, tells you who your Mortal is, and adds **two tabs** to the chat: **😇 Angel: secret (cares for you)** and **🙂 Mortal: @their_username (you care for them)**.
 
 If the bot says you're not on the list, message an organiser with your username.
 
@@ -25,8 +25,10 @@ The bot chat has two tabs. Each one is a separate conversation:
 
 | Tab | What you type there goes to | What arrives there |
 |---|---|---|
-| 😇 **My Angel** | your Angel | messages from your Angel |
-| 🙂 **My Mortal** | your Mortal | messages from your Mortal |
+| 😇 **Angel: secret (cares for you)** | your Angel, the secret person taking care of **you** | messages from your Angel |
+| 🙂 **Mortal: @username (you care for them)** | your Mortal, the person **you** take care of | messages from your Mortal |
+
+The tab name is shown at the top while you chat, so you can always check who you're talking to. If the organisers change the pairings, the Mortal tab is renamed automatically.
 
 Open a tab and type. The tab you're in is always the person you're talking to, so there's nothing to switch or remember.
 
@@ -38,10 +40,11 @@ You can send text, photos, videos, GIFs, stickers, voice notes, files and locati
 Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to it. It appears as a reply on their side too.
 
 ### Ticks and warnings
-- **👍 on your message**: it was delivered.
+- **No reply from the bot**: your message was delivered. There are no ticks or reactions.
+- **A ⚠️ warning replying to your message**: that message was **not** delivered. The warning quotes it, so you know which one to resend.
 - **"hasn't started the bot yet"**: the other person hasn't joined, so your message was **not** delivered. Try again later.
 - **"Messaging is paused"**: the organisers have paused the bot for now.
-- **"Open the 😇 My Angel or 🙂 My Mortal tab"**: you typed outside the tabs, so nothing was sent.
+- **"Open the 😇 Angel tab or the 🙂 Mortal tab"**: you typed outside the tabs, so nothing was sent.
 - **No tabs?** Switch to Telegram on your phone, updated to the latest version. If they're still missing there, send `/start` again.
 
 ### Good to know

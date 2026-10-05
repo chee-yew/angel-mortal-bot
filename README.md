@@ -11,10 +11,10 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 > **Status:** feature-complete, deployed and tested end-to-end on Telegram. See [docs/PLAN.md](docs/PLAN.md) for the design decisions and build history.
 
 ## Features
-- Anonymous two-way chat with your Angel and your Mortal in **two separate tabs** inside the bot chat (😇 My Angel, 🙂 My Mortal), so you always know who you're talking to
+- Anonymous two-way chat with your Angel and your Mortal in **two separate tabs** inside the bot chat (`😇 Angel: secret (cares for you)` and `🙂 Mortal: @their_username (you care for them)`), so you always know who you're talking to
 - All message types: text, photos, videos, GIFs, stickers, voice notes, files, locations
 - Telegram **Reply** works, and both sides see it threaded
-- A 👍 reaction confirms delivery, and you get a clear warning when the other person hasn't joined yet
+- If a message can't be delivered (for example, the other person hasn't joined yet), the bot replies to that exact message with a warning
 - Admin tools:
   - upload and validate the pairings list
   - see who hasn't joined
