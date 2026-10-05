@@ -48,6 +48,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
   - checks nobody is paired with themselves
 
   Then it replaces the pairings and reports any warnings. Existing `user_id`s are kept for handles that are still on the list.
+- `/admin`: lists the admin commands.
+- `/pairs`: lists every angel→mortal pairing, with ⏳ marking anyone who hasn't joined. Long lists are split across several messages.
 - `/status`: shows total participants, how many have joined, and the counts of messages relayed.
 - `/missing`: lists the handles that haven't /start-ed yet, so you can chase them.
 - `/broadcast <text>`: sends an announcement to every joined participant, throttled to stay under Telegram's ~30 msg/s limit.
@@ -93,8 +95,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 4 | DB layer `src/db.ts` | ✅ pushed |
 | 5 | Relay core `src/bot.ts` | ✅ pushed |
 | — | Plan copied to `docs/PLAN.md` | ✅ pushed |
-| 6 | Reply routing | 🟡 awaiting your commit |
-| 7 | Admin commands | ⬜ |
+| 6 | Reply routing | ✅ pushed |
+| 7 | Admin commands | 🟡 awaiting your commit |
 | 8 | Broadcast queue + cron | ⬜ |
 | 9 | Worker entry + `/setup` route | ⬜ |
 | 10 | README + participant guide | ⬜ |

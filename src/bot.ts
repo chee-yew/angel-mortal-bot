@@ -1,6 +1,7 @@
 import { Api, Bot, GrammyError, Keyboard, type Context } from "grammy";
 import type { Message, MessageEntity } from "grammy/types";
 import { Db, type Participant, type Role } from "./db";
+import { normaliseHandle, parsePairings } from "./pairings";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -36,7 +37,39 @@ Note: editing or deleting a message after sending does NOT change the copy the o
 
 Commands: /mortal /angel /whoismymortal /help`;
 
+const ADMIN_HELP = `🛠 Admin commands
+
+/upload: replace all pairings (paste "angel,mortal" lines after the command, or send a .csv with /upload as caption)
+/pairs: list every pairing and who hasn't joined
+/status: join and message counts
+/missing: handles that haven't started the bot
+/pause, /resume: stop/start all relaying
+/swap @old @new: fix a participant's handle
+/myid: show your Telegram ID`;
+
 const flip = (role: Role): Role => (role === "mortal" ? "angel" : "mortal");
+
+/** Joins up to 20 lines, noting how many were left out. */
+function clip(lines: string[], max = 20): string {
+  const shown = lines.slice(0, max).map((l) => `• ${l}`);
+  if (lines.length > max) shown.push(`…and ${lines.length - max} more`);
+  return shown.join("\n");
+}
+
+/** Splits lines into messages under Telegram's 4096-character limit. */
+function chunkLines(lines: string[], limit = 4000): string[] {
+  const chunks: string[] = [];
+  let current = "";
+  for (const line of lines) {
+    if (current && current.length + line.length + 1 > limit) {
+      chunks.push(current);
+      current = "";
+    }
+    current += (current ? "\n" : "") + line;
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
 
 function shift(entities: MessageEntity[] | undefined, by: number): MessageEntity[] {
   return (entities ?? []).map((e) => ({ ...e, offset: e.offset + by }));
@@ -183,6 +216,101 @@ export function createBot(env: Env): Bot {
     if (!me) return;
     const mortal = await db.partner(me.handle, "mortal");
     await ctx.reply(mortal ? `Your Mortal is @${mortal.handle} 🙂` : "You don't have a mortal assigned.");
+  });
+
+  // ---- admin commands (non-admins fall through to "Unknown command") ----
+
+  const admin = pm.filter(isAdmin);
+
+  admin.command("admin", (ctx) => ctx.reply(ADMIN_HELP));
+
+  admin.command("upload", (ctx) => handleUpload(ctx, ctx.match));
+
+  // grammY only matches commands in message text, so catch "/upload" as a file caption here.
+  admin
+    .on("message:document")
+    .filter((ctx) => /^\/upload\b/.test(ctx.msg.caption ?? ""))
+    .use(async (ctx) => {
+      const file = await ctx.api.getFile(ctx.msg.document.file_id);
+      const res = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${file.file_path}`);
+      await handleUpload(ctx, await res.text());
+    });
+
+  async function handleUpload(ctx: Context, text: string) {
+    if (!text.trim()) {
+      await ctx.reply(
+        "Send /upload followed by one pairing per line:\n\n/upload\nangel_handle,mortal_handle\nangel_handle,mortal_handle\n\n" +
+          "Or send a .csv file with /upload as its caption.",
+      );
+      return;
+    }
+
+    const { pairs, errors, warnings } = parsePairings(text);
+    if (errors.length) {
+      await ctx.reply(`❌ Nothing saved. Fix these and upload again:\n\n${clip(errors)}`);
+      return;
+    }
+    await db.replacePairings(pairs);
+    const { total, joined } = await db.stats();
+    let reply = `✅ Saved ${pairs.length} pairings (${total} participants, ${joined} already joined).`;
+    if (warnings.length) reply += `\n\n⚠️ Warnings:\n${clip(warnings)}`;
+    await ctx.reply(reply);
+  }
+
+  admin.command("status", async (ctx) => {
+    const s = await db.stats();
+    await ctx.reply(
+      `📊 Status\n\nParticipants: ${s.total}\nJoined the bot: ${s.joined}/${s.total}\n` +
+        `Messages relayed: ${s.relayed}\nBroadcasts queued: ${s.queued}\n` +
+        `Relay: ${(await db.isPaused()) ? "⏸ paused" : "▶️ running"}`,
+    );
+  });
+
+  admin.command("missing", async (ctx) => {
+    const handles = await db.missing();
+    await ctx.reply(
+      handles.length
+        ? `${handles.length} haven't started the bot yet:\n\n${handles.map((h) => `@${h}`).join("\n")}`
+        : "🎉 Everyone has started the bot!",
+    );
+  });
+
+  admin.command("pairs", async (ctx) => {
+    const rows = await db.allPairs();
+    if (!rows.length) {
+      await ctx.reply("No pairings uploaded yet. Use /upload.");
+      return;
+    }
+    const mark = (joined: number) => (joined ? "" : " ⏳");
+    const lines = rows.map((r) => `@${r.angel_handle}${mark(r.angel_joined)} → @${r.mortal_handle}${mark(r.mortal_joined)}`);
+    for (const chunk of chunkLines(["Angel → Mortal (⏳ = not joined)", "", ...lines])) await ctx.reply(chunk);
+  });
+
+  admin.command("pause", async (ctx) => {
+    await db.setPaused(true);
+    await ctx.reply("⏸ Relay paused. Participants will be told to try later. /resume to restart.");
+  });
+
+  admin.command("resume", async (ctx) => {
+    await db.setPaused(false);
+    await ctx.reply("▶️ Relay resumed.");
+  });
+
+  admin.command("swap", async (ctx) => {
+    const [oldHandle, newHandle] = ctx.match.split(/\s+/).map(normaliseHandle);
+    if (!oldHandle || !newHandle) {
+      await ctx.reply("Usage: /swap @old_handle @new_handle");
+      return;
+    }
+    if (!(await db.byHandle(oldHandle))) {
+      await ctx.reply(`@${oldHandle} isn't a participant.`);
+      return;
+    }
+    if (!(await db.swapHandle(oldHandle, newHandle))) {
+      await ctx.reply(`@${newHandle} is already a participant.`);
+      return;
+    }
+    await ctx.reply(`✅ @${oldHandle} is now @${newHandle}. Their pairings are unchanged.`);
   });
 
   // ---- relay: must be registered last ----
