@@ -6,7 +6,6 @@ export interface Participant {
   handle: string;
   user_id: number | null;
   chat_id: number | null;
-  target: Role;
   joined_at: string | null;
   angel_thread_id: number | null;
   mortal_thread_id: number | null;
@@ -60,10 +59,6 @@ export class Db {
       )
       .bind(userId, chatId, handle)
       .run();
-  }
-
-  async setTarget(handle: string, target: Role) {
-    await this.d1.prepare("UPDATE participants SET target = ? WHERE handle = ?").bind(target, handle).run();
   }
 
   /**
@@ -226,7 +221,7 @@ export class Db {
     await this.d1.batch([
       this.d1.prepare("DELETE FROM msg_map WHERE sender_handle = ? OR recipient_chat_id = ?").bind(handle, p.chat_id),
       this.d1
-        .prepare("UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL, target = 'mortal' WHERE handle = ?")
+        .prepare("UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL WHERE handle = ?")
         .bind(handle),
     ]);
   }

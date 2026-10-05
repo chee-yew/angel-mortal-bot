@@ -1,8 +1,9 @@
-import { Api, Bot, GrammyError, Keyboard, type Context } from "grammy";
-import type { Message, MessageEntity } from "grammy/types";
+import { Api, Bot, GrammyError, type Context } from "grammy";
+import type { Message } from "grammy/types";
 import { parseAdminIds } from "./config";
 import { Db, type Participant, type Role } from "./db";
 import { isValidHandle, normaliseHandle, parsePairings } from "./pairings";
+import { ROLES, TAB_COLOR, TAB_NAME, roleForThread, threadIdFor } from "./topics";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -13,32 +14,25 @@ export interface Env {
   DB: D1Database;
 }
 
-const BTN_ANGEL = "😇 Chat with Angel";
-const BTN_MORTAL = "🙂 Chat with Mortal";
-const BTN_HELP = "❓ Help";
-
-const KEYBOARD = new Keyboard().text(BTN_ANGEL).text(BTN_MORTAL).row().text(BTN_HELP).resized().persistent();
-
-/** Header shown to the recipient, keyed by the sender's role relative to them. */
-const LABEL: Record<Role, string> = {
-  angel: "😇 From your Angel",
-  mortal: "🙂 From your Mortal",
-};
-
 const helpText = (eventName: string) => `👼 ${eventName} bot
 
 You have a Mortal (you know who they are, and you welfare them) and an Angel (they welfare you, and they're a secret!).
 
-• Tap "${BTN_MORTAL}" or "${BTN_ANGEL}" to choose who your messages go to. It stays that way until you switch.
-• Then just send anything: text, photos, stickers, voice notes, videos, files.
-• To answer a specific message, use Telegram's Reply on it. Your reply goes back to whoever sent it, whichever mode you're in.
+This chat has two tabs:
+• ${TAB_NAME.angel}: what you send there goes to your Angel, and their messages arrive there.
+• ${TAB_NAME.mortal}: what you send there goes to your Mortal, and their messages arrive there.
+
+• Send anything in a tab: text, photos, stickers, voice notes, videos, files.
+• To answer a specific message, use Telegram's Reply on it.
 • 👍 on your message means it was delivered.
+
+Can't see the tabs? Update Telegram to the latest version.
 
 Your identity is never shown, but watch what you write (and your voice in voice notes 😉) if you're the angel!
 
 Note: editing or deleting a message after sending does NOT change the copy the other person got.
 
-Commands: /mortal /angel /whoismymortal /help`;
+Commands: /angel /mortal /whoismymortal /help`;
 
 const ADMIN_HELP = `🛠 Admin commands
 
@@ -54,6 +48,8 @@ const ADMIN_HELP = `🛠 Admin commands
 /myid: show your Telegram ID`;
 
 const flip = (role: Role): Role => (role === "mortal" ? "angel" : "mortal");
+
+const article = (role: Role) => (role === "angel" ? "an angel" : "a mortal");
 
 /** Joins up to 20 lines, noting how many were left out. */
 function clip(lines: string[], max = 20): string {
@@ -77,47 +73,50 @@ function chunkLines(lines: string[], limit = 4000): string[] {
   return chunks;
 }
 
-function shift(entities: MessageEntity[] | undefined, by: number): MessageEntity[] {
-  return (entities ?? []).map((e) => ({ ...e, offset: e.offset + by }));
+/**
+ * Creates whichever of `p`'s two tabs don't exist yet and returns `p` with both thread ids.
+ * `p` must have started the bot.
+ */
+async function ensureTabs(api: Api, db: Db, p: Participant): Promise<Participant> {
+  for (const role of ROLES) {
+    if (threadIdFor(p, role) !== null) continue;
+    const topic = await api.createForumTopic(p.chat_id!, TAB_NAME[role], { icon_color: TAB_COLOR[role] });
+    if (!(await db.setThreadId(p.handle, role, topic.message_thread_id))) {
+      // A concurrent request created this tab first: keep theirs, drop ours.
+      await api.deleteForumTopic(p.chat_id!, topic.message_thread_id).catch(() => {});
+    }
+    p = (await db.byHandle(p.handle)) ?? p;
+  }
+  return p;
 }
 
 /**
- * Re-sends `msg` to `chatId` without any trace of the original sender, prefixed with `label`.
+ * Re-sends `msg` into thread `threadId` of `chatId` without any trace of the original sender.
  * Returns the ids of every message created in the recipient's chat.
  */
-async function deliver(api: Api, msg: Message, chatId: number, label: string, replyTo?: number): Promise<number[]> {
-  const header = `${label}:\n`;
-  const bold: MessageEntity = { type: "bold", offset: 0, length: label.length + 1 };
-  const reply_parameters = replyTo ? { message_id: replyTo, allow_sending_without_reply: true } : undefined;
-
-  if (msg.text !== undefined && header.length + msg.text.length <= 4096) {
-    const sent = await api.sendMessage(chatId, header + msg.text, {
-      entities: [bold, ...shift(msg.entities, header.length)],
-      link_preview_options: msg.link_preview_options,
-      reply_parameters,
-    });
-    return [sent.message_id];
-  }
-
-  const captionable = !!(msg.photo || msg.video || msg.animation || msg.document || msg.audio || msg.voice);
-  const caption = msg.caption ?? "";
-  if (captionable && header.length + caption.length <= 1024) {
-    const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id, {
-      caption: header + caption,
-      caption_entities: [bold, ...shift(msg.caption_entities, header.length)],
-      show_caption_above_media: msg.show_caption_above_media,
-      reply_parameters,
-    });
-    return [sent.message_id];
-  }
-
-  // Stickers, video notes, locations, over-long text... send the label separately.
-  const head = await api.sendMessage(chatId, label, {
-    entities: [{ type: "bold", offset: 0, length: label.length }],
-    reply_parameters,
+async function deliver(api: Api, msg: Message, chatId: number, threadId: number, replyTo?: number): Promise<number[]> {
+  const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id, {
+    message_thread_id: threadId,
+    reply_parameters: replyTo ? { message_id: replyTo, allow_sending_without_reply: true } : undefined,
   });
-  const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id);
-  return [head.message_id, sent.message_id];
+  return [sent.message_id];
+}
+
+const isThreadGone = (err: unknown) =>
+  err instanceof GrammyError && err.error_code === 400 && /thread not found/i.test(err.description);
+
+/** Delivers `msg` into `dest`'s tab for talking to their `role`, recreating the tab once if it was lost. */
+async function deliverToTab(api: Api, db: Db, msg: Message, dest: Participant, role: Role, replyTo?: number) {
+  let p = await ensureTabs(api, db, dest);
+  const threadId = threadIdFor(p, role)!;
+  try {
+    return await deliver(api, msg, p.chat_id!, threadId, replyTo);
+  } catch (err) {
+    if (!isThreadGone(err)) throw err;
+    await db.clearThreadId(p.handle, role, threadId);
+    p = await ensureTabs(api, db, (await db.byHandle(p.handle)) ?? p);
+    return await deliver(api, msg, p.chat_id!, threadIdFor(p, role)!, replyTo);
+  }
 }
 
 const ANNOUNCEMENT = "📢 Announcement from the organisers";
@@ -212,46 +211,60 @@ export function createBot(env: Env): Bot {
     return null;
   }
 
-  async function chooseTarget(ctx: Context, role: Role) {
-    const me = await requireParticipant(ctx);
+  /** Posts a pointer inside `me`'s tab for `role`, so the user can tap through to it. */
+  async function pointToTab(ctx: Context, role: Role) {
+    let me = await requireParticipant(ctx);
     if (!me) return;
     const partner = await db.partner(me.handle, role);
     if (!partner) {
-      await ctx.reply(`You don't have ${role === "angel" ? "an angel" : "a mortal"} assigned. Contact the organiser.`);
+      await ctx.reply(`You don't have ${article(role)} assigned. Contact the organiser.`);
       return;
     }
-    await db.setTarget(me.handle, role);
-    let text =
-      role === "mortal"
-        ? `🙂 Now messaging your Mortal (@${partner.handle}). Everything you send goes to them anonymously.`
-        : "😇 Now messaging your Angel. Everything you send goes to them.";
-    if (partner.chat_id === null) {
-      text += `\n\n⚠️ Your ${role} hasn't started the bot yet, so messages can't be delivered until they do.`;
-    }
-    await ctx.reply(text, { reply_markup: KEYBOARD });
+    me = await ensureTabs(ctx.api, db, me);
+    let text = role === "mortal" ? `👇 Type here to message your Mortal (@${partner.handle}).` : "👇 Type here to message your Angel.";
+    if (partner.chat_id === null) text += `\n\n⚠️ Your ${role} hasn't started the bot yet, so messages can't be delivered until they do.`;
+    await ctx.api.sendMessage(ctx.chat!.id, text, { message_thread_id: threadIdFor(me, role)! });
   }
 
   pm.command("start", async (ctx) => {
-    const me = await requireParticipant(ctx);
+    let me = await requireParticipant(ctx);
     if (!me) return;
     const mortal = await db.partner(me.handle, "mortal");
-    const target = me.target === "angel" ? "your Angel 😇" : "your Mortal 🙂";
+    try {
+      me = await ensureTabs(ctx.api, db, me);
+    } catch (err) {
+      console.error(`creating tabs for @${me.handle} failed:`, err);
+      await ctx.reply(
+        "⚠️ I couldn't set up your Angel and Mortal tabs. Make sure your Telegram app is up to date, then send /start again. " +
+          "If it keeps happening, tell the organiser.",
+      );
+      return;
+    }
+
+    const intro: Record<Role, string> = {
+      angel: "Messages you send in this tab go to your Angel, and their messages to you appear here.",
+      mortal: mortal
+        ? `Messages you send in this tab go to your Mortal, @${mortal.handle}, anonymously. Their replies appear here.`
+        : "You don't have a mortal assigned yet.",
+    };
+    for (const role of ROLES) {
+      await ctx.api.sendMessage(ctx.chat.id, intro[role], { message_thread_id: threadIdFor(me, role)! });
+    }
+
     await ctx.reply(
       `Welcome, @${me.handle}! 🎉\n\n` +
         (mortal ? `Your Mortal is @${mortal.handle}. Take good care of them!\n\n` : "") +
-        `Messages you send right now go to ${target}. Use the buttons below to switch.\n\n${HELP}`,
-      { reply_markup: KEYBOARD },
+        `Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to start chatting.\n\n${HELP}`,
+      // Clears the old mode-switching keyboard for anyone who used an earlier version of the bot.
+      { reply_markup: { remove_keyboard: true } },
     );
   });
 
-  pm.command("help", (ctx) => ctx.reply(HELP, { reply_markup: KEYBOARD }));
-  pm.hears(BTN_HELP, (ctx) => ctx.reply(HELP, { reply_markup: KEYBOARD }));
+  pm.command("help", (ctx) => ctx.reply(HELP));
   pm.command("myid", (ctx) => ctx.reply(`Your Telegram ID: ${ctx.from.id}`));
 
-  pm.command("mortal", (ctx) => chooseTarget(ctx, "mortal"));
-  pm.hears(BTN_MORTAL, (ctx) => chooseTarget(ctx, "mortal"));
-  pm.command("angel", (ctx) => chooseTarget(ctx, "angel"));
-  pm.hears(BTN_ANGEL, (ctx) => chooseTarget(ctx, "angel"));
+  pm.command("mortal", (ctx) => pointToTab(ctx, "mortal"));
+  pm.command("angel", (ctx) => pointToTab(ctx, "angel"));
 
   pm.command("whoismymortal", async (ctx) => {
     const me = await requireParticipant(ctx);
@@ -427,30 +440,23 @@ export function createBot(env: Env): Bot {
 
     const me = await requireParticipant(ctx);
     if (!me) return;
+
+    // The tab the message was typed in decides who it's for.
+    const role = roleForThread(me, msg.is_topic_message ? msg.message_thread_id : undefined);
+    if (!role) {
+      // Someone who joined by messaging instead of /start has no tabs yet; make sure they exist.
+      await ensureTabs(ctx.api, db, me);
+      await ctx.reply(`Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to send a message. This one wasn't sent.`);
+      return;
+    }
     if (await db.isPaused()) {
       await ctx.reply("⏸ Messaging is paused by the organisers right now. Please try again later.");
       return;
     }
 
-    // A Telegram "Reply" to a relayed message goes back to whoever sent it, whatever the current mode.
-    let role = me.target;
-    let replyTo: number | undefined;
-    let dest: Participant | null = null;
-    if (msg.reply_to_message) {
-      const origin = await db.getMap(ctx.chat.id, msg.reply_to_message.message_id);
-      if (origin) {
-        const candidate = await db.partner(me.handle, origin.sender_role);
-        // Ignore stale mappings if the pairings were re-uploaded since.
-        if (candidate?.handle === origin.sender_handle) {
-          role = origin.sender_role;
-          dest = candidate;
-          replyTo = origin.src_msg_id;
-        }
-      }
-    }
-    dest ??= await db.partner(me.handle, role);
+    const dest = await db.partner(me.handle, role);
     if (!dest) {
-      await ctx.reply(`You don't have ${role === "angel" ? "an angel" : "a mortal"} assigned. Contact the organiser.`);
+      await ctx.reply(`You don't have ${article(role)} assigned. Contact the organiser.`);
       return;
     }
     if (dest.chat_id === null) {
@@ -458,9 +464,18 @@ export function createBot(env: Env): Bot {
       return;
     }
 
+    // A Telegram "Reply" to a relayed message is shown as a reply on the other side too.
+    let replyTo: number | undefined;
+    if (msg.reply_to_message) {
+      const origin = await db.getMap(ctx.chat.id, msg.reply_to_message.message_id);
+      // Ignore stale mappings if the pairings were re-uploaded since.
+      if (origin?.sender_role === role && origin.sender_handle === dest.handle) replyTo = origin.src_msg_id;
+    }
+
     let sentIds: number[];
     try {
-      sentIds = await deliver(ctx.api, msg, dest.chat_id, LABEL[flip(role)], replyTo);
+      // My Mortal tab delivers into my mortal's Angel tab, and vice versa.
+      sentIds = await deliverToTab(ctx.api, db, msg, dest, flip(role), replyTo);
     } catch (err) {
       if (err instanceof GrammyError && err.error_code === 403) {
         await ctx.reply(`⚠️ Not delivered: your ${role} has blocked or stopped the bot.`);
@@ -489,7 +504,7 @@ export function createBot(env: Env): Bot {
         src_msg_id: msg.message_id,
       });
     } catch (err) {
-      // Only cost: a Reply to this message falls back to the recipient's current mode.
+      // Only cost: a Reply to this message won't show as a reply on the other side.
       console.error(`saveMap for update ${ctx.update.update_id} failed:`, err);
     }
     await ctx.react("👍").catch(() => {});

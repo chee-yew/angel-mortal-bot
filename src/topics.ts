@@ -7,10 +7,12 @@ export const TAB_NAME: Record<Role, string> = {
 };
 
 /** Topic icon colours; Telegram only accepts a fixed set. */
-export const TAB_COLOR: Record<Role, number> = {
+export const TAB_COLOR = {
   angel: 0xffd67e, // yellow
   mortal: 0x6fb9f0, // blue
-};
+} as const satisfies Record<Role, number>;
+
+export const ROLES: readonly Role[] = ["angel", "mortal"];
 
 type Tabs = Pick<Participant, "angel_thread_id" | "mortal_thread_id">;
 
