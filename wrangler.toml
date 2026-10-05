@@ -15,4 +15,4 @@ ADMIN_IDS = ""
 [[d1_databases]]
 binding = "DB"
 database_name = "angel-mortal"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "f622c6d8-cc6e-40be-a8e9-0bd5f37e8834"

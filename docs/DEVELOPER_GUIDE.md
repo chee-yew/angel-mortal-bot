@@ -163,7 +163,7 @@ npx wrangler login
 ```bash
 npx wrangler d1 create angel-mortal
 ```
-Copy the printed `database_id` into `wrangler.toml`. The id isn't secret, so it's fine to commit it. Then create the tables:
+Copy **only** the printed `database_id` into `wrangler.toml`. The id isn't secret, so it's fine to commit it. Keep `binding = "DB"`: Wrangler suggests a different binding name (`angel_mortal`), but the code reads `env.DB`. Then create the tables:
 ```bash
 npx wrangler d1 execute angel-mortal --remote --file=schema.sql
 ```
