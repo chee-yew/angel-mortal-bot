@@ -1,6 +1,6 @@
 # User Guide
 
-- [Part 1 – Participants](#part-1--participants): copy this part into the E Block group chat
+- [Part 1 – Participants](#part-1--participants): copy this part into your event's group chat
 - [Part 2 – Organisers (admins)](#part-2--organisers-admins)
 
 ---

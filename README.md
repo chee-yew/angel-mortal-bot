@@ -1,6 +1,6 @@
 # angel-mortal-bot
 
-An anonymous relay Telegram bot for the **E Block Angel & Mortal** event.
+An anonymous relay Telegram bot for **Angel & Mortal** events. Originally built for E Block's Angel & Mortal; the event name shown in the bot is set by `EVENT_NAME` in `wrangler.toml`.
 
 Every participant has:
 - a **Mortal**: someone they know, and secretly welfare

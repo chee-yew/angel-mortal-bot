@@ -230,18 +230,18 @@ Follow the launch checklist in the [User Guide](USER_GUIDE.md#suggested-launch-c
 
 ## Customising for your event
 
-The code is written for the E Block event. If you're running your own, change these before deploying:
+The code and docs are generic; only `wrangler.toml` holds event-specific values. If you're running your own event, change these before deploying:
 
 | What | Where |
 |---|---|
 | D1 `database_id` | `wrangler.toml`. **Required:** the committed id belongs to the original author's account, so deploying with it fails. Replace it with yours from [step 4](#deployment). |
 | `ADMIN_IDS` | `wrangler.toml`. **Required:** replace the committed ID with your own, from step 8. |
-| Event name in the bot's messages | `HELP` in `src/bot.ts` ("E Block Angel & Mortal bot") |
-| Button labels, help and admin text | `BTN_*`, `HELP`, `ADMIN_HELP` and `ANNOUNCEMENT` in `src/bot.ts` |
+| Event name in the bot's messages | `EVENT_NAME` in `wrangler.toml`, e.g. `"Hall 5 Angel & Mortal"`. It appears at the top of the help message. Leave it empty for plain "Angel & Mortal". |
+| Button labels, help and admin text | `BTN_*`, `helpText`, `ADMIN_HELP` and `ANNOUNCEMENT` in `src/bot.ts` |
 | `/` menu descriptions | `USER_COMMANDS` and `ADMIN_COMMANDS` in `src/index.ts` |
 | Worker name, which sets your URL | `name` in `wrangler.toml`, plus the comment above `workers_dev` that shows the original URL |
 | Database name | `database_name` in `wrangler.toml`. If you change it, use the new name in every `wrangler d1` command in this guide. |
-| Docs and docs site | `README.md`, `docs/index.md`, `docs/_config.yml` (site title), the event name in `docs/USER_GUIDE.md`, and the `github.com/chee-yew/...` links in this guide |
+| Docs links (optional) | The `github.com/chee-yew/...` and `chee-yew.github.io` links in the README and docs, if you publish your own copy |
 
 The pairing format, commands and relay behaviour don't depend on the event, so nothing else needs changing.
 

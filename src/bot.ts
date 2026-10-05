@@ -7,6 +7,7 @@ export interface Env {
   BOT_TOKEN: string;
   WEBHOOK_SECRET: string;
   ADMIN_IDS: string;
+  EVENT_NAME?: string;
   DB: D1Database;
 }
 
@@ -22,7 +23,7 @@ const LABEL: Record<Role, string> = {
   mortal: "🙂 From your Mortal",
 };
 
-const HELP = `👼 E Block Angel & Mortal bot
+const helpText = (eventName: string) => `👼 ${eventName} bot
 
 You have a Mortal (you know who they are, and you welfare them) and an Angel (they welfare you, and they're a secret!).
 
@@ -161,6 +162,7 @@ export function createBot(env: Env): Bot {
       .map(Number),
   );
   const isAdmin = (ctx: Context) => !!ctx.from && admins.has(ctx.from.id);
+  const HELP = helpText(env.EVENT_NAME?.trim() || "Angel & Mortal");
 
   // Never let one bad update fail the webhook (Telegram would retry it forever).
   bot.use(async (ctx, next) => {

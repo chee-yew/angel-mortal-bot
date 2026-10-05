@@ -14,6 +14,9 @@ preview_urls = false
 crons = ["* * * * *"]
 
 [vars]
+# Shown at the top of the bot's help message, e.g. "👼 E Block Angel & Mortal bot".
+EVENT_NAME = "E Block Angel & Mortal"
+
 # Comma-separated Telegram user IDs allowed to use admin commands.
 # Send /myid to the bot to find yours, and replace this one.
 ADMIN_IDS = "959835900"

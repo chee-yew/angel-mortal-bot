@@ -1,4 +1,4 @@
-# E Block Angel & Mortal Bot
+# Angel & Mortal Bot
 
 A Telegram bot that lets every participant chat **anonymously** with their Angel and their Mortal.
 
