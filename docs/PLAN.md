@@ -29,12 +29,16 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 
 ## Data model (D1)
 - `participants(handle TEXT PK lowercase, user_id INT, chat_id INT, target TEXT DEFAULT 'mortal', joined_at)`: `user_id` stays null until the person /start-s the bot
+  - **Planned (step 11):** add `angel_thread_id INT` and `mortal_thread_id INT` (each person's two tabs) and drop `target`. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
+- `pairings_backup(angel_handle TEXT PK, mortal_handle TEXT UNIQUE)`: the pairings before the last `/upload`, for `/undoupload`
 - `pairings(angel_handle TEXT PK, mortal_handle TEXT UNIQUE)`
 - `msg_map(recipient_chat_id INT, recipient_msg_id INT, sender_handle TEXT, sender_role TEXT, src_chat_id INT, src_msg_id INT, created_at TEXT, PK(recipient_chat_id, recipient_msg_id))`: lets a recipient use Telegram's *Reply* on a relayed message, and the reply goes back to the right person, threaded under the original
 - `settings(key TEXT PK, value TEXT)`: stores the `paused` flag
 - `broadcast_queue(id INT PK AUTOINCREMENT, chat_id INT, text TEXT)`: pending `/broadcast` deliveries
 
 ## Participant flow
+> **Being replaced (step 11):** steps 2–4 and 6 below describe the current one-chat design, where you switch modes with buttons. For the next event they are replaced by two tabs. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
+
 1. A participant opens the bot and taps **Start**. The bot matches their `@username` (case-insensitive) against the uploaded list, then stores their `user_id`/`chat_id`.
    - **No username set:** the bot tells them how to set one, then to /start again.
    - **Not on the list:** "You're not registered, contact the organiser."
@@ -47,6 +51,45 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 4. **Reply routing:** if the user uses Telegram *Reply* on a relayed message, the bot looks it up in `msg_map` and routes to that person, whatever the current target is.
 5. A 👍 reaction is set on the sender's own message once it's delivered. If the recipient hasn't started the bot yet, the sender instead gets: "Your angel/mortal hasn't joined the bot yet; message not delivered."
 6. Commands: `/angel`, `/mortal` (switch target), `/whoismymortal`, `/help`.
+
+## Next event: Angel and Mortal tabs
+
+### Why
+**Feedback from the first event:** people stopped texting their angel, and when they came back they didn't know which mode they were in. The bot keeps a hidden "current target" that's switched with the 😇/🙂 buttons, and nothing in the chat shows it, so it's easy to send something to the wrong person.
+
+### What changes
+Telegram now supports **topics in private chats with bots** (Bot API 9.3, Dec 2025, and 9.4, Feb 2026). Each participant gets two tabs inside the bot chat:
+
+| Tab | Typing here | Messages that arrive here |
+|---|---|---|
+| 😇 **My Angel** | goes to your angel | from your angel |
+| 🙂 **My Mortal** | goes to your mortal | from your mortal |
+
+There is no mode to remember, so the switch buttons and the "current target" go away.
+
+- `/start` binds the user as before, creates both tabs, and posts an intro in each:
+  - **My Mortal:** "Messages here go to your Mortal @bob, anonymously."
+  - **My Angel:** "Messages here go to your Angel."
+- Relayed messages arrive in the matching tab **without** a "From your Angel" label, because the tab already says who it's from. `deliver()` becomes a single `copyMessage`.
+- A plain message in the main (General) area isn't relayed. The bot replies "Open the 😇 My Angel or 🙂 My Mortal tab to send a message."
+- `/angel` and `/mortal` post "👇 Type here…" inside that tab, which takes the user there.
+- Broadcasts, admin commands, `/help` and `/whoismymortal` stay in General.
+- Reply still works inside a tab. `msg_map` is used only to quote the original message on the other side, not to pick the destination.
+
+### How it works
+- **BotFather (once per bot):** enable **Threaded Mode** (topics in private chats) and turn **off** "users can create/delete topics". `/setup` warns if `getMe().has_topics_enabled` is false.
+- **Data:** two new columns, `participants.angel_thread_id` and `participants.mortal_thread_id`. A fresh database gets them from `schema.sql`. An existing database runs `migrations/0002_topics.sql` once, and its old `target` column is left unused.
+- **Creating tabs:** `ensureTopics()` calls `createForumTopic` for each missing tab (angel yellow `0xFFD67E`, mortal blue `0x6FB9F0`) and saves the ID only if the column is still empty. If two requests race, the loser deletes its duplicate tab. It runs on `/start`, and lazily before delivering to someone whose tabs are missing.
+- **Recovering a lost tab:** if a send fails with "thread not found", the bot clears that ID, recreates the tab and retries once.
+- **Routing:** the tab a message was sent in decides the destination (`roleForThread()`). A message from my Mortal tab lands in my mortal's Angel tab, and the reverse (`flip()`). All existing handling stays: not joined, paused, 403/400/429, and saving to `msg_map`.
+- **Tab names never include handles**, so re-uploading pairings never needs a rename.
+- **`/unbind`** also clears both tab IDs, so a newly bound account gets fresh tabs.
+- **Pure helpers** in `src/topics.ts` (`roleForThread`, `threadIdFor`, tab names and colours) are unit-tested without grammY.
+- **Removed:** the persistent keyboard, `BTN_*`, `setTarget`, the "Now messaging…" confirmations and the label/header logic in `deliver()`.
+
+### Risks
+- **Old Telegram apps:** topics in private chats need a 2026 app. The User Guide asks participants to update first, and the pilot covers iOS, Android, Desktop and Web. If someone can't see tabs, the General prompt still tells them what to do, so nothing breaks.
+- **Free-plan limits:** `/start` makes about 5 Telegram calls, well under the 50 per request.
 
 ## Admin commands (only for user IDs listed in the `ADMIN_IDS` secret)
 - `/upload`: send a `.csv` file, or paste lines of `angel_handle,mortal_handle`. The bot validates the list:
@@ -107,6 +150,12 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 8 | `/broadcast` queue (+ docs) | ✅ done |
 | 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ✅ done |
 | 10 | Deploy + end-to-end test, final docs pass | ✅ done. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1, cron and the admin ID configured, and tested end-to-end on Telegram. Docs refreshed for the public repo, with a licence, contributor guide, CI and a configurable `EVENT_NAME`. |
+| 10b | Review fixes: `ADMIN_IDS` as a secret, relay failures reported to the sender, `/swap` validation, `/unbind`, `/undoupload` | ✅ done |
+| 11a | Tabs: design section in this plan and these tracker rows | ✅ done |
+| 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ⏳ next |
+| 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ⏳ |
+| 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ⏳ |
+| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | ⏳ |
 
 ## Verification
 - `npx tsc --noEmit` passes.
@@ -117,6 +166,15 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
   - Check the not-joined warning.
   - Check `/pause`, `/missing`, `/broadcast`, and that `/upload` validation rejects a bad list.
 - After deploying, check `wrangler tail` while sending messages to confirm there are no errors.
+- **Tabs (step 11):** on a test bot with Threaded Mode on, and 3 accounts in a cycle A→B→C→A:
+  - `/start` creates both tabs with their intros.
+  - Text, photo, sticker and voice sent in the Mortal tab arrive in the recipient's Angel tab, and the reverse. Nothing shows "Forwarded from".
+  - Reply inside a tab quotes the original on the other side.
+  - A message in General gets the "Open a tab" prompt and isn't relayed.
+  - `/broadcast` lands in General. `/unbind`, then `/start` again, gives fresh tabs.
+  - `/setup` warns when Threaded Mode is off.
+  - Repeat on iOS, Android, Desktop and Web.
+  - Apply `schema.sql` to a fresh local D1, and `migrations/0002_topics.sql` to one with the old schema. Both end up with the thread columns.
 
 ## What I'll need from you during the build
 - The bot token, which you'll set yourself via `wrangler secret put` and never paste in chat.
