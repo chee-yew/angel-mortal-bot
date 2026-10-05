@@ -5,3 +5,4 @@ node_modules/
 # Real pairings reveal who is whose angel - never commit them
 *.csv
 !pairings.example.csv
+.idea/
