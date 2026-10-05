@@ -72,7 +72,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
   - **My Angel:** "Messages here go to your Angel."
 - ~~Relayed messages arrive without a label~~ **Changed in step 11g:** relayed messages carry a label again (`😇 Angel` / `🙂 Mortal (@handle)`), because Telegram's "All" view merges both tabs.
 - A plain message in the main (General) area isn't relayed. The bot replies "Open the 😇 My Angel or 🙂 My Mortal tab to send a message."
-- `/angel` and `/mortal` post "👇 Type here…" inside that tab, which takes the user there.
+- `/angel` and `/mortal` post "👇 Type here…" inside that tab, and reply where the user is with the exact tab name to tap. **Found in the pilot (11h):** a bot can't open a tab for the user. There's no Bot API method for it, and `t.me/<bot>/<topic_id>` is treated as a Mini App link ("bot application not found").
 - Broadcasts, admin commands, `/help` and `/whoismymortal` stay in General.
 - Reply still works inside a tab. `msg_map` is used only to quote the original message on the other side, not to pick the destination.
 
@@ -166,6 +166,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
+| 11h | `/angel` and `/mortal` name the exact tab to tap, since bots can't open a tab and topic links don't work for bots | ✅ done |
 | 11g | Labels on relayed messages (`😇 Angel` / `🙂 Mortal (@handle)`) so Telegram's "All" view is readable | ✅ done (simulated; check on a phone) |
 | 11f | After the pilot: no 👍, failure warnings quote the failed message, tab names with role and mortal handle (auto-renamed), `migrations/0003_tab_names.sql` | ✅ done (simulated; check on a phone) |
 | 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 Docs done. Pilot so far: tabs show on the phone app; Telegram Desktop shows only the main chat ("Off-topic message"), and Web showed them once, then not. Participants are told to use the phone app. Still to check: a message between two accounts both ways. |

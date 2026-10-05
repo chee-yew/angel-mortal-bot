@@ -5,8 +5,8 @@ import { Db } from "./db";
 
 const USER_COMMANDS = [
   { command: "start", description: "Join, see your Mortal and get your two tabs" },
-  { command: "mortal", description: "Jump to your Mortal's tab" },
-  { command: "angel", description: "Jump to your Angel's tab" },
+  { command: "mortal", description: "Show where your Mortal's tab is" },
+  { command: "angel", description: "Show where your Angel's tab is" },
   { command: "whoismymortal", description: "Remind me who my Mortal is" },
   { command: "help", description: "How this bot works" },
 ];

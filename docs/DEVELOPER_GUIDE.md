@@ -316,6 +316,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | `/start` says "couldn't set up your Angel and Mortal tabs" | Threaded Mode is off in BotFather (open `/setup` to check), or the participant's Telegram app is too old to support it. |
 | Participant can't see the tabs | Telegram Desktop and Web don't show bot tabs reliably yet (seen in the pilot: Web showed them, then didn't). Have them use the phone app, updated. If the tabs are missing on the phone too, send `/start` again. |
+| `/mortal` doesn't switch to the Mortal tab | Expected. Bots can't open a tab for the user, and `t.me/<bot>/<topic_id>` links don't work for bots (Telegram treats them as Mini App links: "bot application not found"). `/mortal` replies with the exact tab name to tap and leaves a 👇 message in that tab. |
 | "no such column: angel_thread_id" or "…angel_tab_name" in the logs | The database predates that feature. Run the missing migration (see [Operations](#operations)). |
 | The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
 | `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |

@@ -59,8 +59,8 @@ Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to 
 | Command | |
 |---|---|
 | `/start` | Join, see your Mortal and get your two tabs |
-| `/mortal` | Jump to your Mortal's tab |
-| `/angel` | Jump to your Angel's tab |
+| `/mortal` | Shows which tab is your Mortal's and leaves a 👇 message in it. Telegram doesn't let the bot open a tab for you, so tap it at the top of the chat. |
+| `/angel` | Same, for your Angel's tab |
 | `/whoismymortal` | Remind me who my Mortal is |
 | `/help` | Show help |
 

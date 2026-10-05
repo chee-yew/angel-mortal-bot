@@ -296,7 +296,16 @@ export function createBot(env: Env): Bot {
     me = await ensureTabs(ctx.api, db, me);
     let text = role === "mortal" ? `👇 Type here to message your Mortal (@${partner.handle}).` : "👇 Type here to message your Angel.";
     if (partner.chat_id === null) text += `\n\n⚠️ Your ${role} hasn't started the bot yet, so messages can't be delivered until they do.`;
-    await ctx.api.sendMessage(ctx.chat!.id, text, { message_thread_id: threadIdFor(me, role)! });
+    const threadId = threadIdFor(me, role)!;
+    await ctx.api.sendMessage(ctx.chat!.id, text, { message_thread_id: threadId });
+
+    // Telegram gives bots no way to open a tab for the user (and t.me links to a bot's topics are
+    // treated as Mini App links), so if they're elsewhere, tell them exactly which tab to tap.
+    const alreadyThere = ctx.msg?.is_topic_message && ctx.msg.message_thread_id === threadId;
+    if (!alreadyThere) {
+      const name = tabName(role, role === "mortal" ? partner.handle : null);
+      await ctx.reply(`👆 Tap the "${name}" tab at the top of this chat to open it. I've left a 👇 message there for you.`);
+    }
   }
 
   pm.command("start", async (ctx) => {
@@ -329,7 +338,7 @@ export function createBot(env: Env): Bot {
     await ctx.reply(
       `Welcome, @${me.handle}! 🎉\n\n` +
         (mortal ? `Your Mortal is @${mortal.handle}. Take good care of them!\n\n` : "") +
-        `Open the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to start chatting.\n\n${HELP}`,
+        `Your two tabs are at the top of this chat: tap the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to start chatting.\n\n${HELP}`,
       // Clears the old mode-switching keyboard for anyone who used an earlier version of the bot.
       { reply_markup: { remove_keyboard: true } },
     );
@@ -526,7 +535,7 @@ export function createBot(env: Env): Bot {
     const role = roleForThread(me, msg.is_topic_message ? msg.message_thread_id : undefined);
     if (!role) {
       await warn(
-        `Open the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to send a message. This one wasn't sent.\n\n` +
+        `Tap the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} at the top of this chat to send a message. This one wasn't sent.\n\n` +
           "Can't see the tabs? Use Telegram on your phone. Some computer versions of Telegram don't show them yet.",
       );
       return;
