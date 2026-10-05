@@ -107,8 +107,8 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 | 7b | README + User Guide + Developer Guide | ✅ committed |
 | 7c | Docs website (GitHub Pages) | ✅ pushed |
 | 8 | `/broadcast` queue (+ docs) | ✅ committed |
-| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | 🟡 awaiting your commit |
-| 10 | Deploy + end-to-end test, final docs pass | ⬜ |
+| 9 | Worker entry: webhook, `/setup` route, cron wiring (+ docs) | ✅ pushed |
+| 10 | Deploy + end-to-end test, final docs pass | 🟡 in progress. Deployed to `https://angel-mortal-bot.chee-yew.workers.dev` with D1 and cron live. Waiting on the TLS cert for the new subdomain, then `/setup`, admin, and E2E tests. |
 - Commits are small and frequent, one logical step each. Already done:
   1. Scaffold config
   2. Schema + pairing parser + tests

@@ -2,6 +2,11 @@ name = "angel-mortal-bot"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
+# Serve at https://angel-mortal-bot.chee-yew.workers.dev
+workers_dev = true
+# No per-version preview URLs: only the live deployment should receive webhooks.
+preview_urls = false
+
 # Every minute: deliver queued /broadcast messages in small batches
 # (the free plan caps outgoing requests per invocation at 50).
 [triggers]
