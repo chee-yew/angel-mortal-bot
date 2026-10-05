@@ -306,7 +306,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Admin `/` menu missing | Each admin must `/start` the bot, then open `/setup` again |
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | `/start` says "couldn't set up your Angel and Mortal tabs" | Threaded Mode is off in BotFather (open `/setup` to check), or the participant's Telegram app is too old to support it. |
-| Participant can't see the tabs | They need to update Telegram, then send `/start` again. |
+| Participant can't see the tabs | Telegram Desktop and Web don't show bot tabs reliably yet (seen in the pilot: Web showed them, then didn't). Have them use the phone app, updated. If the tabs are missing on the phone too, send `/start` again. |
 | "no such column: angel_thread_id" in the logs | The database predates tabs. Run `migrations/0002_topics.sql` (see [Operations](#operations)). |
 | The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
 | `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |

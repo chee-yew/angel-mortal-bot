@@ -26,7 +26,7 @@ This chat has two tabs:
 • To answer a specific message, use Telegram's Reply on it.
 • 👍 on your message means it was delivered.
 
-Can't see the tabs? Update Telegram to the latest version.
+Can't see the tabs? Update Telegram, or use the app on your phone. Some computer versions of Telegram don't show them yet.
 
 Your identity is never shown, but watch what you write (and your voice in voice notes 😉) if you're the angel!
 
@@ -446,7 +446,10 @@ export function createBot(env: Env): Bot {
     if (!role) {
       // Someone who joined by messaging instead of /start has no tabs yet; make sure they exist.
       await ensureTabs(ctx.api, db, me);
-      await ctx.reply(`Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to send a message. This one wasn't sent.`);
+      await ctx.reply(
+        `Open the "${TAB_NAME.angel}" or "${TAB_NAME.mortal}" tab to send a message. This one wasn't sent.\n\n` +
+          "Can't see the tabs? Use Telegram on your phone. Some computer versions of Telegram don't show them yet.",
+      );
       return;
     }
     if (await db.isPaused()) {

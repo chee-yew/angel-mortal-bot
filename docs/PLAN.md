@@ -88,6 +88,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 - **Removed:** the persistent keyboard, `BTN_*`, `setTarget`, the "Now messaging…" confirmations and the label/header logic in `deliver()`.
 
 ### Risks
+- **Computer apps (found in the pilot):** Telegram Desktop and Web don't show bot tabs reliably yet, so the bot's messages and the User Guide tell participants to use the phone app.
 - **Old Telegram apps:** topics in private chats need a 2026 app. The User Guide asks participants to update first, and the pilot covers iOS, Android, Desktop and Web. If someone can't see tabs, the General prompt still tells them what to do, so nothing breaks.
 - **Free-plan limits:** `/start` makes about 5 Telegram calls, well under the 50 per request.
 
@@ -155,7 +156,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
-| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 docs done; pilot on real Telegram still to do |
+| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 Docs done. Pilot so far: tabs show on the phone app; Telegram Desktop shows only the main chat ("Off-topic message"), and Web showed them once, then not. Participants are told to use the phone app. Still to check: a message between two accounts both ways. |
 
 ## Verification
 - `npx tsc --noEmit` passes.

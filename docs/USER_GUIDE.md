@@ -13,7 +13,7 @@ You've been given a **Mortal**. That's someone you'll secretly take care of duri
 This bot lets you chat with **both**. Your Mortal never finds out you're their Angel, and you won't find out who your Angel is (unless you guess 👀).
 
 ### Getting started
-1. **Update Telegram** to the latest version. The bot gives you two chat tabs, and older versions of the app can't show them.
+1. **Use Telegram on your phone, updated to the latest version.** The bot gives you two chat tabs. The phone apps show them; some computer versions of Telegram (Desktop and Web) don't show them reliably yet.
 2. **Make sure you have a Telegram username.** Go to Settings → Username. The organisers matched you using it, so don't change it during the event. If you must change it, tell an organiser.
 3. Open the bot and tap **Start**.
 4. The bot welcomes you, tells you who your Mortal is, and adds **two tabs** to the chat: **😇 My Angel** and **🙂 My Mortal**.
@@ -42,7 +42,7 @@ Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to 
 - **"hasn't started the bot yet"**: the other person hasn't joined, so your message was **not** delivered. Try again later.
 - **"Messaging is paused"**: the organisers have paused the bot for now.
 - **"Open the 😇 My Angel or 🙂 My Mortal tab"**: you typed outside the tabs, so nothing was sent.
-- **No tabs?** Update Telegram, then send `/start` again.
+- **No tabs?** Switch to Telegram on your phone, updated to the latest version. If they're still missing there, send `/start` again.
 
 ### Good to know
 - **Editing or deleting** a message after sending does **not** change what the other person already received. Think before you send!
@@ -112,6 +112,6 @@ Uploading again **replaces** the whole list. People who already joined stay join
 1. Open the `/setup` link and check it says **✅ Threaded Mode is on**. If not, turn it on in @BotFather first (see the [Developer Guide](DEVELOPER_GUIDE.md#deployment)).
 2. `/upload` the pairings and fix any errors or warnings.
 3. `/pause`, so nobody chats before the event officially starts.
-4. Post **Part 1** of this guide and the bot link in the group chat, and remind everyone to **update Telegram** first.
+4. Post **Part 1** of this guide and the bot link in the group chat, and remind everyone to **use the Telegram app on their phone, updated** first. Computer versions don't always show the tabs.
 5. Use `/missing` to chase people until everyone has joined.
 6. `/resume` when the event starts, and `/broadcast` that it's open 🎉
