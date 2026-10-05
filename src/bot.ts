@@ -1,9 +1,9 @@
 import { Api, Bot, GrammyError, type Context } from "grammy";
-import type { Message } from "grammy/types";
+import type { Message, MessageEntity } from "grammy/types";
 import { parseAdminIds } from "./config";
 import { Db, type Participant, type Role } from "./db";
 import { isValidHandle, normaliseHandle, parsePairings } from "./pairings";
-import { ROLES, TAB_COLOR, TAB_LABEL, roleForThread, tabName, threadIdFor } from "./topics";
+import { ROLES, TAB_COLOR, TAB_LABEL, messageLabel, roleForThread, tabName, threadIdFor } from "./topics";
 
 export interface Env {
   BOT_TOKEN: string;
@@ -24,6 +24,7 @@ This chat has two tabs:
 
 • Send anything in a tab: text, photos, stickers, voice notes, videos, files.
 • To answer a specific message, use Telegram's Reply on it.
+• Messages from your Angel and Mortal start with a label, so you can tell them apart in Telegram's "All" view.
 • If a message can't be delivered, I'll reply to it with a warning. No warning means it was delivered.
 
 Can't see the tabs? Update Telegram, or use the app on your phone. Some computer versions of Telegram don't show them yet.
@@ -108,32 +109,81 @@ async function ensureTabs(api: Api, db: Db, p: Participant): Promise<Participant
   return p;
 }
 
+function shift(entities: MessageEntity[] | undefined, by: number): MessageEntity[] {
+  return (entities ?? []).map((e) => ({ ...e, offset: e.offset + by }));
+}
+
 /**
- * Re-sends `msg` into thread `threadId` of `chatId` without any trace of the original sender.
- * Returns the ids of every message created in the recipient's chat.
+ * Re-sends `msg` into thread `threadId` of `chatId` without any trace of the original sender,
+ * prefixed with `label`. Returns the ids of every message created in the recipient's chat.
  */
-async function deliver(api: Api, msg: Message, chatId: number, threadId: number, replyTo?: number): Promise<number[]> {
-  const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id, {
+async function deliver(
+  api: Api,
+  msg: Message,
+  chatId: number,
+  threadId: number,
+  label: string,
+  replyTo?: number,
+): Promise<number[]> {
+  const header = `${label}:\n`;
+  const bold: MessageEntity = { type: "bold", offset: 0, length: label.length + 1 };
+  const reply_parameters = replyTo ? { message_id: replyTo, allow_sending_without_reply: true } : undefined;
+
+  if (msg.text !== undefined && header.length + msg.text.length <= 4096) {
+    const sent = await api.sendMessage(chatId, header + msg.text, {
+      message_thread_id: threadId,
+      entities: [bold, ...shift(msg.entities, header.length)],
+      link_preview_options: msg.link_preview_options,
+      reply_parameters,
+    });
+    return [sent.message_id];
+  }
+
+  const captionable = !!(msg.photo || msg.video || msg.animation || msg.document || msg.audio || msg.voice);
+  const caption = msg.caption ?? "";
+  if (captionable && header.length + caption.length <= 1024) {
+    const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id, {
+      message_thread_id: threadId,
+      caption: header + caption,
+      caption_entities: [bold, ...shift(msg.caption_entities, header.length)],
+      show_caption_above_media: msg.show_caption_above_media,
+      reply_parameters,
+    });
+    return [sent.message_id];
+  }
+
+  // Stickers, video notes, locations, over-long text... send the label separately, in the same tab.
+  const head = await api.sendMessage(chatId, label, {
     message_thread_id: threadId,
-    reply_parameters: replyTo ? { message_id: replyTo, allow_sending_without_reply: true } : undefined,
+    entities: [{ type: "bold", offset: 0, length: label.length }],
+    reply_parameters,
   });
-  return [sent.message_id];
+  const sent = await api.copyMessage(chatId, msg.chat.id, msg.message_id, { message_thread_id: threadId });
+  return [head.message_id, sent.message_id];
 }
 
 const isThreadGone = (err: unknown) =>
   err instanceof GrammyError && err.error_code === 400 && /thread not found/i.test(err.description);
 
 /** Delivers `msg` into `dest`'s tab for talking to their `role`, recreating the tab once if it was lost. */
-async function deliverToTab(api: Api, db: Db, msg: Message, dest: Participant, role: Role, replyTo?: number) {
+async function deliverToTab(
+  api: Api,
+  db: Db,
+  msg: Message,
+  dest: Participant,
+  role: Role,
+  label: string,
+  replyTo?: number,
+) {
   let p = await ensureTabs(api, db, dest);
   const threadId = threadIdFor(p, role)!;
   try {
-    return await deliver(api, msg, p.chat_id!, threadId, replyTo);
+    return await deliver(api, msg, p.chat_id!, threadId, label, replyTo);
   } catch (err) {
     if (!isThreadGone(err)) throw err;
     await db.clearThreadId(p.handle, role, threadId);
     p = await ensureTabs(api, db, (await db.byHandle(p.handle)) ?? p);
-    return await deliver(api, msg, p.chat_id!, threadIdFor(p, role)!, replyTo);
+    return await deliver(api, msg, p.chat_id!, threadIdFor(p, role)!, label, replyTo);
   }
 }
 
@@ -507,7 +557,7 @@ export function createBot(env: Env): Bot {
     let sentIds: number[];
     try {
       // My Mortal tab delivers into my mortal's Angel tab, and vice versa.
-      sentIds = await deliverToTab(ctx.api, db, msg, dest, flip(role), replyTo);
+      sentIds = await deliverToTab(ctx.api, db, msg, dest, flip(role), messageLabel(flip(role), me.handle), replyTo);
     } catch (err) {
       if (err instanceof GrammyError && err.error_code === 403) {
         await warn(`⚠️ Not delivered: your ${role} has blocked or stopped the bot.`);

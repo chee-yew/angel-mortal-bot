@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { roleForThread, tabName, threadIdFor } from "../src/topics.ts";
+import { messageLabel, roleForThread, tabName, threadIdFor } from "../src/topics.ts";
+
+assert.equal(messageLabel("mortal", "alice_tan"), "🙂 Mortal (@alice_tan)");
+assert.equal(messageLabel("angel", "alice_tan"), "😇 Angel");
+assert.ok(!messageLabel("angel", "alice_tan").includes("alice_tan")); // an angel is never named
 
 assert.equal(tabName("mortal", "bob_lim"), "🙂 Mortal: @bob_lim (you care for them)");
 assert.equal(tabName("mortal", null), "🙂 Mortal: none assigned");

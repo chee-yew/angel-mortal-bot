@@ -70,7 +70,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 - `/start` binds the user as before, creates both tabs, and posts an intro in each:
   - **My Mortal:** "Messages here go to your Mortal @bob, anonymously."
   - **My Angel:** "Messages here go to your Angel."
-- Relayed messages arrive in the matching tab **without** a "From your Angel" label, because the tab already says who it's from. `deliver()` becomes a single `copyMessage`.
+- ~~Relayed messages arrive without a label~~ **Changed in step 11g:** relayed messages carry a label again (`😇 Angel` / `🙂 Mortal (@handle)`), because Telegram's "All" view merges both tabs.
 - A plain message in the main (General) area isn't relayed. The bot replies "Open the 😇 My Angel or 🙂 My Mortal tab to send a message."
 - `/angel` and `/mortal` post "👇 Type here…" inside that tab, which takes the user there.
 - Broadcasts, admin commands, `/help` and `/whoismymortal` stay in General.
@@ -86,6 +86,11 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 - **`/unbind`** also clears both tab IDs, so a newly bound account gets fresh tabs.
 - **Pure helpers** in `src/topics.ts` (`roleForThread`, `threadIdFor`, tab names and colours) are unit-tested without grammY.
 - **Removed:** the persistent keyboard, `BTN_*`, `setTarget`, the "Now messaging…" confirmations and the label/header logic in `deliver()`.
+
+### Labels for Telegram's "All" view (step 11g)
+- Telegram adds an **All** tab that merges every tab, and a bot can't hide it or keep messages out of it (an open Telegram feature request: bugs.telegram.org/c/64399). There's no separate General tab either: the welcome area *is* All.
+- So every relayed message carries a bold label again, from `messageLabel()` in `src/topics.ts`: `😇 Angel` from an angel, `🙂 Mortal (@handle)` from a mortal. `deliver()` brings back the text / caption / header-message logic from before the tabs, with `message_thread_id` on every send.
+- The help text and User Guide tell people to chat inside the Angel and Mortal tabs rather than All.
 
 ### Update after the pilot (step 11f)
 - **No 👍 reaction.** A delivered message gets nothing. Every failure is posted as a Reply to the sender's message, so the warning quotes exactly which message wasn't delivered.
@@ -161,6 +166,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
+| 11g | Labels on relayed messages (`😇 Angel` / `🙂 Mortal (@handle)`) so Telegram's "All" view is readable | ✅ done (simulated; check on a phone) |
 | 11f | After the pilot: no 👍, failure warnings quote the failed message, tab names with role and mortal handle (auto-renamed), `migrations/0003_tab_names.sql` | ✅ done (simulated; check on a phone) |
 | 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 Docs done. Pilot so far: tabs show on the phone app; Telegram Desktop shows only the main chat ("Off-topic message"), and Web showed them once, then not. Participants are told to use the phone app. Still to check: a message between two accounts both ways. |
 

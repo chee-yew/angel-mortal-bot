@@ -30,6 +30,8 @@ The bot chat has two tabs. Each one is a separate conversation:
 
 The tab name is shown at the top while you chat, so you can always check who you're talking to. If the organisers change the pairings, the Mortal tab is renamed automatically.
 
+Every message you receive starts with a bold label: **😇 Angel:** or **🙂 Mortal (@username):**. Telegram also shows an **All** tab that mixes both chats together, and it can't be turned off. The labels tell you who sent what there, but it's easiest to **chat inside the Angel and Mortal tabs**.
+
 Open a tab and type. The tab you're in is always the person you're talking to, so there's nothing to switch or remember.
 
 Messages typed in the main chat, outside the tabs, are **not** sent. The bot tells you to open a tab instead.
@@ -48,6 +50,7 @@ Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to 
 - **No tabs?** Switch to Telegram on your phone, updated to the latest version. If they're still missing there, send `/start` again.
 
 ### Good to know
+- The **All** tab shows both chats mixed together. Read and reply in the 😇 Angel and 🙂 Mortal tabs instead, so you never answer the wrong person.
 - **Editing or deleting** a message after sending does **not** change what the other person already received. Think before you send!
 - As an Angel, careful: your **voice** (voice notes), your writing style and personal photos can give you away.
 - Your Mortal's name is shown to you. Your Angel's name is never shown to anyone.

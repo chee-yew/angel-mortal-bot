@@ -51,7 +51,13 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
 4. The partner is looked up in `pairings`. If the message is a Reply to a relayed message, `msg_map` supplies the original message so it's quoted on the other side. The mapping is ignored if the pairings have changed since.
 5. `deliverToTab()` sends it into the partner's matching tab: my Mortal tab → my mortal's **Angel** tab, and the reverse (`flip()`).
    - `ensureTabs()` creates any missing tab first.
-   - `deliver()` is a single `copyMessage` with `message_thread_id`. There's no label, because the tab already says who it's from.
+   - `deliver()` adds a bold label from `messageLabel()`: "😇 Angel" from an angel, or "🙂 Mortal (@handle)" from a mortal. The angel is never named. The label matters because Telegram's **All** view merges both tabs and can't be hidden. Every send carries `message_thread_id`:
+
+     | Message type | How the label is attached |
+     |---|---|
+     | Text | Prepended to the text. Entities (bold, links…) are shifted by the label length in UTF-16 units, which is how Telegram counts. |
+     | Photo, video, GIF, document, audio, voice | Copied with the label prepended to the caption |
+     | Sticker, video note, location, or text/caption over the length limit | Label sent as its own message, then the original copied. Both go into the same tab, and only the label carries `reply_parameters`. |
    - If Telegram says the thread no longer exists, the tab ID is cleared, the tab recreated and the send retried once.
 6. Every message id created in the recipient's chat goes into `msg_map`, so replies can be quoted.
 7. A delivered message gets **no** reply or reaction. Every "not delivered" outcome below is sent as a Reply to the sender's message (the relay handler's `warn()`), so the warning quotes the exact message that failed. The same goes for paused, no partner, partner not joined, and typing outside the tabs.

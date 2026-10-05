@@ -9,6 +9,15 @@ export function tabName(role: Role, mortalHandle: string | null): string {
   return mortalHandle ? `🙂 Mortal: @${mortalHandle} (you care for them)` : "🙂 Mortal: none assigned";
 }
 
+/**
+ * The label on top of every relayed message, so the sender is clear even in Telegram's "All" view,
+ * which merges both tabs. `senderRole` is the sender's role relative to the recipient. Only the
+ * mortal is named: the recipient (their angel) already knows who they are.
+ */
+export function messageLabel(senderRole: Role, senderHandle: string): string {
+  return senderRole === "angel" ? "😇 Angel" : `🙂 Mortal (@${senderHandle})`;
+}
+
 /** How messages refer to each tab. */
 export const TAB_LABEL: Record<Role, string> = {
   angel: "😇 Angel tab",
