@@ -13,7 +13,7 @@ You need Node.js 22.6 or newer.
 git clone https://github.com/<your-username>/angel-mortal-bot.git   # your fork
 cd angel-mortal-bot
 npm install
-npm test               # pairing parser tests
+npm test               # parser, config and tab tests
 npm run typecheck      # tsc --noEmit
 ```
 

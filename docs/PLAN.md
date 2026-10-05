@@ -29,7 +29,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 
 ## Data model (D1)
 - `participants(handle TEXT PK lowercase, user_id INT, chat_id INT, target TEXT DEFAULT 'mortal', joined_at)`: `user_id` stays null until the person /start-s the bot
-  - **Planned (step 11):** add `angel_thread_id INT` and `mortal_thread_id INT` (each person's two tabs) and drop `target`. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
+  - **Since step 11:** `angel_thread_id INT` and `mortal_thread_id INT` (each person's two tabs) were added and `target` was dropped. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
 - `pairings_backup(angel_handle TEXT PK, mortal_handle TEXT UNIQUE)`: the pairings before the last `/upload`, for `/undoupload`
 - `pairings(angel_handle TEXT PK, mortal_handle TEXT UNIQUE)`
 - `msg_map(recipient_chat_id INT, recipient_msg_id INT, sender_handle TEXT, sender_role TEXT, src_chat_id INT, src_msg_id INT, created_at TEXT, PK(recipient_chat_id, recipient_msg_id))`: lets a recipient use Telegram's *Reply* on a relayed message, and the reply goes back to the right person, threaded under the original
@@ -37,7 +37,7 @@ Secrets go in `wrangler secret put` and are never committed: `BOT_TOKEN` and `WE
 - `broadcast_queue(id INT PK AUTOINCREMENT, chat_id INT, text TEXT)`: pending `/broadcast` deliveries
 
 ## Participant flow
-> **Being replaced (step 11):** steps 2–4 and 6 below describe the current one-chat design, where you switch modes with buttons. For the next event they are replaced by two tabs. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
+> **Replaced (step 11):** steps 2–4 and 6 below describe the original one-chat design, where you switched modes with buttons. They've been replaced by two tabs. See [Next event: Angel and Mortal tabs](#next-event-angel-and-mortal-tabs).
 
 1. A participant opens the bot and taps **Start**. The bot matches their `@username` (case-insensitive) against the uploaded list, then stores their `user_id`/`chat_id`.
    - **No username set:** the bot tells them how to set one, then to /start again.
@@ -155,7 +155,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
-| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | ⏳ next |
+| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 docs done; pilot on real Telegram still to do |
 
 ## Verification
 - `npx tsc --noEmit` passes.

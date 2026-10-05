@@ -11,4 +11,4 @@ A Telegram bot that lets every participant chat **anonymously** with their Angel
 ## How it works in 10 seconds
 - You know your **Mortal**, and you welfare them in secret.
 - Your **Angel** welfares you, and you don't know who they are.
-- Tap **🙂 Chat with Mortal** or **😇 Chat with Angel** in the bot, then send anything. The bot passes it on without revealing who sent it.
+- The bot chat has two tabs, **😇 My Angel** and **🙂 My Mortal**. Open one and send anything. The bot passes it on without revealing who sent it.

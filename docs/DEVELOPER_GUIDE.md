@@ -5,6 +5,7 @@ Contents:
 - [How a message is relayed](#how-a-message-is-relayed)
 - [Broadcasts](#broadcasts)
 - [Data model](#data-model)
+- [Tabs](#tabs)
 - [Code tour](#code-tour)
 - [Local development](#local-development)
 - [Deployment](#deployment)
@@ -36,6 +37,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
   | `GET /` | Health check ("…is running") |
 
 - **Cron** (`* * * * *` in `wrangler.toml`) calls `scheduled()`, which drains the broadcast queue.
+- **Tabs.** Each participant's "😇 My Angel" and "🙂 My Mortal" tabs are forum topics in their private chat with the bot (Bot API 9.3+). The bot creates them with `createForumTopic`, which only works when **Threaded Mode** is on in BotFather.
 - **Anonymity** comes from `copyMessage`. Unlike `forwardMessage`, it creates a brand-new message from the bot, with no "Forwarded from" header.
 - **Never-fail webhook.** The first middleware in `createBot` catches and logs every error. The webhook therefore always returns 200, so Telegram never retries the same update in a loop.
 
@@ -44,20 +46,15 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
 1. `resolve()` identifies the sender:
    - first by Telegram `user_id`, which survives username changes
    - otherwise by `@username`, which is then bound to their `user_id`/`chat_id` on first contact
-2. If relaying is paused, the bot stops here and tells the sender.
-3. The bot picks the destination:
-   - **If the message is a Reply** to a relayed message, it looks up `msg_map` and sends to the original sender. It ignores the mapping if pairings have changed since.
-   - **Otherwise** it uses the sender's current `target` (`angel` | `mortal`) and looks up the partner in `pairings`.
-4. `deliver()` sends the message with a bold label ("😇 From your Angel" / "🙂 From your Mortal"):
-
-   | Message type | How the label is attached |
-   |---|---|
-   | Text | Prepended to the text. Entities (bold, links…) are shifted by the label length in UTF-16 units, which is how Telegram counts. |
-   | Photo, video, GIF, document, audio, voice | Copied with the label prepended to the caption |
-   | Sticker, video note, location, or text/caption over the length limit | Label sent as its own message, then the original copied |
-
-5. Every message id created in the recipient's chat goes into `msg_map`, so replies can be routed back.
-6. The bot reacts 👍 on the sender's message.
+2. **The tab decides the destination.** `roleForThread()` maps the message's `message_thread_id` to `angel` or `mortal`. A message typed outside both tabs (in General) isn't relayed: the bot creates the tabs if they're missing and tells the sender to open one.
+3. If relaying is paused, the bot stops here and tells the sender.
+4. The partner is looked up in `pairings`. If the message is a Reply to a relayed message, `msg_map` supplies the original message so it's quoted on the other side. The mapping is ignored if the pairings have changed since.
+5. `deliverToTab()` sends it into the partner's matching tab: my Mortal tab → my mortal's **Angel** tab, and the reverse (`flip()`).
+   - `ensureTabs()` creates any missing tab first.
+   - `deliver()` is a single `copyMessage` with `message_thread_id`. There's no label, because the tab already says who it's from.
+   - If Telegram says the thread no longer exists, the tab ID is cleared, the tab recreated and the send retried once.
+6. Every message id created in the recipient's chat goes into `msg_map`, so replies can be quoted.
+7. The bot reacts 👍 on the sender's message.
 
    | Error | What the sender is told |
    |---|---|
@@ -66,7 +63,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
    | 429 (sending too fast) | "not delivered", wait N seconds and resend |
    | Anything else | "not delivered because of a temporary error", resend |
 
-   Once `deliver()` has succeeded, the sender always gets 👍. If saving to `msg_map` fails at that point, the error is only logged: a Reply to that message falls back to the recipient's current mode. Telling the sender it failed would make them send a duplicate. Errors anywhere else in an update are caught by the first middleware, which logs them and tells the user to try again.
+   Once `deliver()` has succeeded, the sender always gets 👍. If saving to `msg_map` fails at that point, the error is only logged: a Reply to that message just won't show as a reply on the other side. Telling the sender it failed would make them send a duplicate. Errors anywhere else in an update are caught by the first middleware, which logs them and tells the user to try again.
 
 ## Broadcasts
 
@@ -87,7 +84,7 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 
 | Table | Purpose |
 |---|---|
-| `participants` | `handle` (lowercase, PK), `user_id`/`chat_id` (null until /start), `target`, `joined_at` |
+| `participants` | `handle` (lowercase, PK), `user_id`/`chat_id` (null until /start), `joined_at`, `angel_thread_id`/`mortal_thread_id` (their two tabs, null until created) |
 | `pairings` | `angel_handle` (PK) → `mortal_handle` (unique) |
 | `pairings_backup` | The pairings as they were before the last `/upload` or `/undoupload`, so `/undoupload` can restore them |
 | `msg_map` | `(recipient_chat_id, recipient_msg_id)` → original sender, their role relative to the recipient, and the source message, for reply routing |
@@ -101,7 +98,12 @@ Defined in [`schema.sql`](https://github.com/chee-yew/angel-mortal-bot/blob/main
 
 Before replacing, `/upload` copies the current pairings to `pairings_backup` in the same atomic batch. `/undoupload` simply calls `replacePairings()` with the backup, so the two lists swap places and a second `/undoupload` redoes the upload.
 
-`/unbind @handle` clears `user_id`, `chat_id`, `joined_at` and `target` for that handle, and deletes the `msg_map` rows for messages the bound account sent or received, so replies to them can't route to whoever joins next.
+`/unbind @handle` clears `user_id`, `chat_id`, `joined_at` and both tab IDs for that handle, and deletes the `msg_map` rows for messages the bound account sent or received, so replies to them can't route to whoever joins next.
+
+## Tabs
+- `ensureTabs()` creates each missing tab and saves its ID with `Db.setThreadId()`, which only writes if the column is still empty. If two requests create the same tab at once, the loser deletes its duplicate.
+- Tabs are created by `/start`, by `/angel` and `/mortal`, when someone types in General, and before delivering to someone whose tab is missing.
+- Tab names never contain handles, so re-uploading pairings never needs a rename. The mortal's handle appears in the intro message that `/start` posts.
 
 ## Code tour
 
@@ -109,9 +111,10 @@ Before replacing, `/upload` copies the current pairings to `pairings_backup` in 
 |---|---|
 | [`src/pairings.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/pairings.ts) | `parsePairings()` turns raw text into `{pairs, errors, warnings}`. Pure, no I/O, and unit-tested. |
 | [`src/db.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/db.ts) | `Db` class. Every SQL query lives here. |
-| [`src/bot.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `deliver()`. |
+| [`src/bot.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/bot.ts) | `createBot(env)`: participant commands, admin commands, then the relay handler, which **must stay last** because it catches every message. Also `ensureTabs()`, `deliverToTab()` and `deliver()`. |
+| [`src/topics.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/topics.ts) | Tab names and colours, `roleForThread()` (which tab a message was sent in) and `threadIdFor()` (which tab to deliver to). Pure and unit-tested. |
 | [`src/config.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/config.ts) | `parseAdminIds()` reads the `ADMIN_IDS` secret, ignoring and reporting entries that aren't numeric IDs. Pure and unit-tested. |
-| [`src/index.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/index.ts) | Worker entry. `fetch()` handles `/webhook` (secret check, then grammY), `/setup` (webhook and command menus) and `/` (health check); `scheduled()` is the cron that drains broadcasts. The bot instance is cached per isolate, so `getMe` runs once rather than on every update. |
+| [`src/index.ts`](https://github.com/chee-yew/angel-mortal-bot/blob/main/src/index.ts) | Worker entry. `fetch()` handles `/webhook` (secret check, then grammY), `/setup` (Threaded Mode check, webhook and command menus) and `/` (health check); `scheduled()` is the cron that drains broadcasts. The bot instance is cached per isolate, so `getMe` runs once rather than on every update. |
 
 Conventions:
 - **Handles:** always lowercase with no `@`. Normalise any input with `normaliseHandle()`.
@@ -121,11 +124,11 @@ Conventions:
 
 ## Local development
 
-Prerequisites: Node.js 22.6+ (the tests use its built-in TypeScript support) and a **separate test bot** from @BotFather, so you never test on the live bot.
+Prerequisites: Node.js 22.6+ (the tests use its built-in TypeScript support) and a **separate test bot** from @BotFather with **Threaded Mode** on (see [Deployment](#deployment)), so you never test on the live bot.
 
 ```bash
 npm install
-npm test               # parser and config tests
+npm test               # parser, config and tab tests
 npm run typecheck      # tsc --noEmit
 ```
 
@@ -158,7 +161,11 @@ To test properly you need **at least 3 Telegram accounts** in a cycle A→B→C�
 ## Deployment
 
 ### 1. Create the bot
-In Telegram, open **@BotFather** → `/newbot` → pick a name and a username → copy the **token**. Optional:
+In Telegram, open **@BotFather** → `/newbot` → pick a name and a username → copy the **token**.
+
+**Required:** in BotFather, open your bot's settings and turn **Threaded Mode** (topics in private chats) **on**, and turn **off** letting users create and delete topics. Without Threaded Mode the bot can't create anyone's Angel and Mortal tabs, and `/start` tells them so.
+
+Optional:
 - `/setdescription`
 - `/setuserpic`
 - `/setjoingroups` → **Disable**, since the bot is for private chats only
@@ -212,11 +219,13 @@ Open this in a browser, using your Worker URL and your `WEBHOOK_SECRET`:
 https://angel-mortal-bot.<sub>.workers.dev/setup?key=<WEBHOOK_SECRET>
 ```
 It should print:
+- `✅ Threaded Mode is on…` (if it says ❌, fix it in BotFather and open the link again)
 - `✅ Webhook set to …/webhook`
 - `✅ Participant command menu set`
 - `Webhook info: … last error: none`
 
 What it does:
+- checks that Threaded Mode is on, and warns if users can create their own topics
 - registers the webhook with the secret, receiving only `message` updates
 - sets the `/` command menu for participants
 - sets a fuller menu for each admin in `ADMIN_IDS`
@@ -270,6 +279,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Redeploy after code change | `npx wrangler deploy` |
 | Query the DB | `npx wrangler d1 execute angel-mortal --remote --command "SELECT * FROM participants"` |
 | Apply schema changes after pulling a new version | `npx wrangler d1 execute angel-mortal --remote --file=schema.sql`. It only creates missing tables, so it's safe to re-run and keeps your data. |
+| Upgrade a database created before tabs existed | `npx wrangler d1 execute angel-mortal --remote --file=migrations/0002_topics.sql`, once. A database created from the current `schema.sql` doesn't need it. |
 | Back up the DB | `npx wrangler d1 export angel-mortal --remote --output backup.sql` (git-ignore it, because it contains pairings) |
 
 ## Free-tier limits
@@ -295,6 +305,9 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | `/setup` says "Setup failed … 401 Unauthorized" | `BOT_TOKEN` is wrong. Run `npx wrangler secret put BOT_TOKEN` again. |
 | Admin `/` menu missing | Each admin must `/start` the bot, then open `/setup` again |
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
+| `/start` says "couldn't set up your Angel and Mortal tabs" | Threaded Mode is off in BotFather (open `/setup` to check), or the participant's Telegram app is too old to support it. |
+| Participant can't see the tabs | They need to update Telegram, then send `/start` again. |
+| "no such column: angel_thread_id" in the logs | The database predates tabs. Run `migrations/0002_topics.sql` (see [Operations](#operations)). |
 | The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
 | `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |
 | "isn't on the participant list" | The participant's username doesn't match the upload. Use `/swap @wrong @right`. |

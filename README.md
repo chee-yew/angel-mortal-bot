@@ -11,9 +11,9 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 > **Status:** feature-complete, deployed and tested end-to-end on Telegram. See [docs/PLAN.md](docs/PLAN.md) for the design decisions and build history.
 
 ## Features
-- Anonymous two-way chat with your Angel and your Mortal, switched with a single button
+- Anonymous two-way chat with your Angel and your Mortal in **two separate tabs** inside the bot chat (😇 My Angel, 🙂 My Mortal), so you always know who you're talking to
 - All message types: text, photos, videos, GIFs, stickers, voice notes, files, locations
-- Telegram **Reply** works. A reply goes back to whoever sent that message, and both sides see it threaded.
+- Telegram **Reply** works, and both sides see it threaded
 - A 👍 reaction confirms delivery, and you get a clear warning when the other person hasn't joined yet
 - Admin tools:
   - upload and validate the pairings list
@@ -21,7 +21,8 @@ The bot lets each participant chat with both through one bot. Messages are re-se
   - check status
   - broadcast announcements to everyone
   - pause or resume relaying
-  - fix a participant's handle
+  - fix a participant's handle, or detach the wrong account
+  - undo an upload
 
 ## Tech stack
 | Part | Choice | Why |
@@ -41,7 +42,7 @@ The bot lets each participant chat with both through one bot. Messages are re-se
 | [Plan](docs/PLAN.md) | Design decisions and build progress |
 
 ## Quick start (deploy)
-You need Node.js 22.6+, a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and a bot token from [@BotFather](https://t.me/BotFather). The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
+You need Node.js 22.6+, a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and a bot token from [@BotFather](https://t.me/BotFather) with **Threaded Mode** turned on, so each participant gets their two tabs. The [Developer Guide](docs/DEVELOPER_GUIDE.md#deployment) has every step explained. In short:
 ```bash
 git clone https://github.com/chee-yew/angel-mortal-bot.git
 cd angel-mortal-bot
@@ -62,11 +63,14 @@ Then open `https://<your-worker>.workers.dev/setup?key=<WEBHOOK_SECRET>` to regi
 ```
 src/
   index.ts      Worker entry: /webhook, /setup, cron
-  bot.ts        Commands, admin tools, relay logic
+  bot.ts        Commands, admin tools, tabs, relay logic
   db.ts         Typed D1 queries
+  topics.ts     Angel/Mortal tab names and helpers
+  config.ts     ADMIN_IDS parsing
   pairings.ts   Pairing list parser + validation
 test/           Node tests (npm test)
 schema.sql      D1 tables
+migrations/     One-off upgrades for databases created by older versions
 wrangler.toml   Cloudflare config
 docs/           Plan, user guide, developer guide
 .github/        CI workflow, issue and PR templates
@@ -74,7 +78,7 @@ docs/           Plan, user guide, developer guide
 
 ## Privacy
 - Real pairing lists are **never committed**: `*.csv` is git-ignored, except `pairings.example.csv`.
-- The bot token and webhook secret are stored only as Cloudflare secrets.
+- The bot token, webhook secret and admin IDs are stored only as Cloudflare secrets.
 - This repository is **public**. That's safe because anonymity comes from how the bot relays messages, not from hiding the code. Never commit tokens, real pairings or database exports.
 
 ## Contributing

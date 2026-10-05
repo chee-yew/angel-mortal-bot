@@ -13,32 +13,36 @@ You've been given a **Mortal**. That's someone you'll secretly take care of duri
 This bot lets you chat with **both**. Your Mortal never finds out you're their Angel, and you won't find out who your Angel is (unless you guess 👀).
 
 ### Getting started
-1. **Make sure you have a Telegram username.** Go to Settings → Username. The organisers matched you using it, so don't change it during the event. If you must change it, tell an organiser.
-2. Open the bot and tap **Start**.
-3. The bot welcomes you and tells you who your Mortal is.
+1. **Update Telegram** to the latest version. The bot gives you two chat tabs, and older versions of the app can't show them.
+2. **Make sure you have a Telegram username.** Go to Settings → Username. The organisers matched you using it, so don't change it during the event. If you must change it, tell an organiser.
+3. Open the bot and tap **Start**.
+4. The bot welcomes you, tells you who your Mortal is, and adds **two tabs** to the chat: **😇 My Angel** and **🙂 My Mortal**.
 
 If the bot says you're not on the list, message an organiser with your username.
 
 ### Sending messages
-At the bottom of the chat there are buttons:
+The bot chat has two tabs. Each one is a separate conversation:
 
-| Button | What it does |
-|---|---|
-| 🙂 **Chat with Mortal** | Everything you send goes to your Mortal. They see it as "😇 From your Angel". |
-| 😇 **Chat with Angel** | Everything you send goes to your Angel. They see it as "🙂 From your Mortal". |
-| ❓ **Help** | Shows the help message |
+| Tab | What you type there goes to | What arrives there |
+|---|---|---|
+| 😇 **My Angel** | your Angel | messages from your Angel |
+| 🙂 **My Mortal** | your Mortal | messages from your Mortal |
 
-Tap a button once. Everything you send after that goes to that person **until you tap the other button**. Check which mode you're in before sending something secret! 😉
+Open a tab and type. The tab you're in is always the person you're talking to, so there's nothing to switch or remember.
+
+Messages typed in the main chat, outside the tabs, are **not** sent. The bot tells you to open a tab instead.
 
 You can send text, photos, videos, GIFs, stickers, voice notes, files and locations.
 
 ### Replying to a specific message
-Swipe left on a message (or long-press → **Reply**) to reply to it. Your reply goes back to **whoever sent that message**, even if you're in the other mode, and it appears as a reply on their side too.
+Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to it. It appears as a reply on their side too.
 
 ### Ticks and warnings
 - **👍 on your message**: it was delivered.
 - **"hasn't started the bot yet"**: the other person hasn't joined, so your message was **not** delivered. Try again later.
 - **"Messaging is paused"**: the organisers have paused the bot for now.
+- **"Open the 😇 My Angel or 🙂 My Mortal tab"**: you typed outside the tabs, so nothing was sent.
+- **No tabs?** Update Telegram, then send `/start` again.
 
 ### Good to know
 - **Editing or deleting** a message after sending does **not** change what the other person already received. Think before you send!
@@ -48,9 +52,9 @@ Swipe left on a message (or long-press → **Reply**) to reply to it. Your reply
 ### Commands
 | Command | |
 |---|---|
-| `/start` | Join and see your Mortal |
-| `/mortal` | Switch to messaging your Mortal |
-| `/angel` | Switch to messaging your Angel |
+| `/start` | Join, see your Mortal and get your two tabs |
+| `/mortal` | Jump to your Mortal's tab |
+| `/angel` | Jump to your Angel's tab |
 | `/whoismymortal` | Remind me who my Mortal is |
 | `/help` | Show help |
 
@@ -105,8 +109,9 @@ Uploading again **replaces** the whole list. People who already joined stay join
 | `/myid` | Shows your Telegram ID |
 
 ### Suggested launch checklist
-1. `/upload` the pairings and fix any errors or warnings.
-2. `/pause`, so nobody chats before the event officially starts.
-3. Post **Part 1** of this guide and the bot link in the group chat.
-4. Use `/missing` to chase people until everyone has joined.
-5. `/resume` when the event starts, and `/broadcast` that it's open 🎉
+1. Open the `/setup` link and check it says **✅ Threaded Mode is on**. If not, turn it on in @BotFather first (see the [Developer Guide](DEVELOPER_GUIDE.md#deployment)).
+2. `/upload` the pairings and fix any errors or warnings.
+3. `/pause`, so nobody chats before the event officially starts.
+4. Post **Part 1** of this guide and the bot link in the group chat, and remind everyone to **update Telegram** first.
+5. Use `/missing` to chase people until everyone has joined.
+6. `/resume` when the event starts, and `/broadcast` that it's open 🎉
