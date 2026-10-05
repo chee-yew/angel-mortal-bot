@@ -154,8 +154,8 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11a | Tabs: design section in this plan and these tracker rows | ✅ done |
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
-| 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ⏳ next |
-| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | ⏳ |
+| 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
+| 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | ⏳ next |
 
 ## Verification
 - `npx tsc --noEmit` passes.

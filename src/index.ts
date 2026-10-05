@@ -4,9 +4,9 @@ import { parseAdminIds } from "./config";
 import { Db } from "./db";
 
 const USER_COMMANDS = [
-  { command: "start", description: "Join and see who your Mortal is" },
-  { command: "mortal", description: "Send messages to your Mortal" },
-  { command: "angel", description: "Send messages to your Angel" },
+  { command: "start", description: "Join, see your Mortal and get your two tabs" },
+  { command: "mortal", description: "Jump to your Mortal's tab" },
+  { command: "angel", description: "Jump to your Angel's tab" },
   { command: "whoismymortal", description: "Remind me who my Mortal is" },
   { command: "help", description: "How this bot works" },
 ];
@@ -41,6 +41,17 @@ async function setup(url: URL, env: Env): Promise<Response> {
   const api = new Api(env.BOT_TOKEN);
   const webhookUrl = `${url.origin}/webhook`;
   const log: string[] = [];
+
+  // Each participant's Angel and Mortal tabs are topics in their private chat with the bot.
+  const me = await api.getMe();
+  log.push(
+    me.has_topics_enabled
+      ? "✅ Threaded Mode is on, so participants get Angel and Mortal tabs"
+      : "❌ Threaded Mode is OFF: participants can't get their Angel and Mortal tabs. Turn it on in @BotFather (Bot Settings), then open /setup again.",
+  );
+  if (me.allows_users_to_create_topics) {
+    log.push("⚠️ Participants can create and delete their own topics. Turn this off in @BotFather so they only have the two tabs.");
+  }
 
   await api.setWebhook(webhookUrl, { secret_token: env.WEBHOOK_SECRET, allowed_updates: ["message"] });
   log.push(`✅ Webhook set to ${webhookUrl}`);

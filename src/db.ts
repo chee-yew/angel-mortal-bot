@@ -213,7 +213,8 @@ export class Db {
 
   /**
    * Detaches the Telegram account bound to `handle`, so the next account with that username can join.
-   * Also forgets reply routing for messages that account sent or received.
+   * Also forgets reply routing for messages that account sent or received, and its tabs, so the
+   * next account gets fresh ones.
    */
   async unbind(handle: string) {
     const p = await this.byHandle(handle);
@@ -221,7 +222,9 @@ export class Db {
     await this.d1.batch([
       this.d1.prepare("DELETE FROM msg_map WHERE sender_handle = ? OR recipient_chat_id = ?").bind(handle, p.chat_id),
       this.d1
-        .prepare("UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL WHERE handle = ?")
+        .prepare(
+          "UPDATE participants SET user_id = NULL, chat_id = NULL, joined_at = NULL, angel_thread_id = NULL, mortal_thread_id = NULL WHERE handle = ?",
+        )
         .bind(handle),
     ]);
   }
