@@ -15,7 +15,7 @@ crons = ["* * * * *"]
 [vars]
 # Comma-separated Telegram user IDs allowed to use admin commands.
 # Send /myid to the bot to find yours.
-ADMIN_IDS = ""
+ADMIN_IDS = "959835900"
 
 [[d1_databases]]
 binding = "DB"
