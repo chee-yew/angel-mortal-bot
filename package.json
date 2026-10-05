@@ -1,0 +1,16 @@
+{
+  "name": "angel-mortal-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "logs": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings test/pairings.test.ts"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0"
+  }
+}

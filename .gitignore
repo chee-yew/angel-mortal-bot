@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+# Real pairings reveal who is whose angel - never commit them
+*.csv
+!pairings.example.csv
