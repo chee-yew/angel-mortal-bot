@@ -6,3 +6,5 @@ node_modules/
 *.csv
 !pairings.example.csv
 .idea/
+# DB exports contain pairings
+backup*.sql
