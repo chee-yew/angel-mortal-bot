@@ -68,11 +68,12 @@ Telegram now supports **topics in private chats with bots** (Bot API 9.3, Dec 20
 There is no mode to remember, so the switch buttons and the "current target" go away.
 
 - `/start` binds the user as before, creates both tabs, and posts an intro in each:
-  - **My Mortal:** "Messages here go to your Mortal @bob, anonymously."
-  - **My Angel:** "Messages here go to your Angel."
+  - **Mortal tab:** "🙂 Chat with your Mortal, @bob, here. They don't know it's you." *(wording since step 11i)*
+  - **Angel tab:** "😇 Chat with your secret Angel here." *(wording since step 11i)*
+  - The welcome in the main chat is one line ("Welcome, @you! 🎉 Your Mortal is @bob…") followed by the `/help` text, which opens with "👆 Chat inside the tabs at the top of this chat" and "Messages typed outside the tabs are NOT sent."
 - ~~Relayed messages arrive without a label~~ **Changed in step 11g:** relayed messages carry a label again (`😇 Angel` / `🙂 Mortal (@handle)`), because Telegram's "All" view merges both tabs.
-- A plain message in the main (General) area isn't relayed. The bot replies "Open the 😇 My Angel or 🙂 My Mortal tab to send a message."
-- `/angel` and `/mortal` post "👇 Type here…" inside that tab, and reply where the user is with the exact tab name to tap. **Found in the pilot (11h):** a bot can't open a tab for the user. There's no Bot API method for it, and `t.me/<bot>/<topic_id>` is treated as a Mini App link ("bot application not found").
+- A plain message in the main (General) area isn't relayed. The bot replies to it with "⚠️ Not sent. Type inside the 😇 Angel tab or 🙂 Mortal tab at the top of this chat."
+- ~~`/angel` and `/mortal` post "👇 Type here…" inside that tab, and reply with the exact tab name to tap.~~ **Removed in step 11i:** they only repeated what the tab bar already shows. **Found in the pilot (11h):** a bot can't open a tab for the user. There's no Bot API method for it, and `t.me/<bot>/<topic_id>` is treated as a Mini App link ("bot application not found").
 - Broadcasts, admin commands, `/help` and `/whoismymortal` stay in General.
 - Reply still works inside a tab. `msg_map` is used only to quote the original message on the other side, not to pick the destination.
 
@@ -95,7 +96,7 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 ### Update after the pilot (step 11f)
 - **No 👍 reaction.** A delivered message gets nothing. Every failure is posted as a Reply to the sender's message, so the warning quotes exactly which message wasn't delivered.
 - **Tab names explain the roles:** `😇 Angel: secret (cares for you)` and `🙂 Mortal: @handle (you care for them)`. They're stored in `angel_tab_name`/`mortal_tab_name` (`migrations/0003_tab_names.sql`), and `ensureTabs()` renames a tab with `editForumTopic` whenever its stored name is out of date, for example after a re-upload.
-- The intro messages spell out "the person YOU take care of" and "the secret person taking care of YOU".
+- ~~The intro messages spell out "the person YOU take care of" and "the secret person taking care of YOU".~~ **Changed in step 11i:** the intros are one line each. The roles are explained once, in the help text.
 
 ### Risks
 - **Computer apps (found in the pilot):** Telegram Desktop and Web don't show bot tabs reliably yet, so the bot's messages and the User Guide tell participants to use the phone app.
@@ -166,9 +167,10 @@ There is no mode to remember, so the switch buttons and the "current target" go 
 | 11b | Tabs: schema, `migrations/0002_topics.sql`, `src/topics.ts` + tests, `Db` thread-id methods | ✅ done |
 | 11c | Tabs: `ensureTopics`, routing by tab, simpler `deliver`, remove modes and keyboard | ✅ done |
 | 11d | Tabs: `/setup` Threaded Mode check, command menus, `/unbind` clears tabs | ✅ done |
-| 11h | `/angel` and `/mortal` name the exact tab to tap, since bots can't open a tab and topic links don't work for bots | ✅ done |
+| 11h | `/angel` and `/mortal` name the exact tab to tap, since bots can't open a tab and topic links don't work for bots | ✅ done (commands removed in 11i) |
 | 11g | Labels on relayed messages (`😇 Angel` / `🙂 Mortal (@handle)`) so Telegram's "All" view is readable | ✅ done (simulated; check on a phone) |
 | 11f | After the pilot: no 👍, failure warnings quote the failed message, tab names with role and mortal handle (auto-renamed), `migrations/0003_tab_names.sql` | ✅ done (simulated; check on a phone) |
+| 11i | Shorter onboarding: the welcome, `/help` and tab intros say each thing once and lead with "chat inside the tabs"; `/angel` and `/mortal` removed | ✅ done and deployed (re-run `/setup` to refresh the command menu; check on a phone) |
 | 11e | Tabs: User Guide, Developer Guide, README; end-to-end pilot with 3 accounts on iOS, Android, Desktop and Web | 🔄 Docs done. Pilot so far: tabs show on the phone app; Telegram Desktop shows only the main chat ("Off-topic message"), and Web showed them once, then not. Participants are told to use the phone app. Still to check: a message between two accounts both ways. |
 
 ## Verification
@@ -184,7 +186,8 @@ There is no mode to remember, so the switch buttons and the "current target" go 
   - `/start` creates both tabs with their intros.
   - Text, photo, sticker and voice sent in the Mortal tab arrive in the recipient's Angel tab, and the reverse. Nothing shows "Forwarded from".
   - Reply inside a tab quotes the original on the other side.
-  - A message in General gets the "Open a tab" prompt and isn't relayed.
+  - A message in General gets the "⚠️ Not sent" reply and isn't relayed.
+  - The command menu shows only `/start`, `/whoismymortal`, `/help` (plus admin commands for admins).
   - `/broadcast` lands in General. `/unbind`, then `/start` again, gives fresh tabs.
   - `/setup` warns when Threaded Mode is off.
   - Repeat on iOS, Android, Desktop and Web.

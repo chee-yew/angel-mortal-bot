@@ -46,7 +46,7 @@ Telegram ──HTTPS POST (webhook)──▶ Cloudflare Worker ──▶ grammY 
 1. `resolve()` identifies the sender:
    - first by Telegram `user_id`, which survives username changes
    - otherwise by `@username`, which is then bound to their `user_id`/`chat_id` on first contact
-2. **The tab decides the destination.** `roleForThread()` maps the message's `message_thread_id` to `angel` or `mortal`. A message typed outside both tabs (in General) isn't relayed: the bot creates the tabs if they're missing and tells the sender to open one.
+2. **The tab decides the destination.** `roleForThread()` maps the message's `message_thread_id` to `angel` or `mortal`. A message typed outside both tabs (in General) isn't relayed: the bot creates the tabs if they're missing and replies to the message with "⚠️ Not sent. Type inside the 😇 Angel tab or 🙂 Mortal tab…".
 3. If relaying is paused, the bot stops here and tells the sender.
 4. The partner is looked up in `pairings`. If the message is a Reply to a relayed message, `msg_map` supplies the original message so it's quoted on the other side. The mapping is ignored if the pairings have changed since.
 5. `deliverToTab()` sends it into the partner's matching tab: my Mortal tab → my mortal's **Angel** tab, and the reverse (`flip()`).
@@ -111,8 +111,9 @@ Before replacing, `/upload` copies the current pairings to `pairings_backup` in 
 - `ensureTabs()` creates each missing tab and saves its ID and name with `Db.setThreadId()`, which only writes if the column is still empty. If two requests create the same tab at once, the loser deletes its duplicate.
 - It also **renames** any tab whose stored name differs from what `tabName()` gives now (`editForumTopic`, then `Db.setTabName()`). This happens after a re-upload changes someone's mortal, and on tabs from older versions, whose name is `NULL`. A failed rename is only logged, so it never blocks a message, and it's retried the next time.
 - It runs for the sender of every relayed message and for the recipient before delivery, so names catch up as soon as either person is active.
-- Tabs are created by `/start`, by `/angel` and `/mortal`, by any message the person sends, and before delivering to someone whose tab is missing.
-- The intro message that `/start` posts in each tab spells out the role again. It isn't updated after a re-upload, but the tab name is.
+- Tabs are created by `/start`, by any message the person sends, and before delivering to someone whose tab is missing.
+- `/start` posts a one-line intro in each tab ("😇 Chat with your secret Angel here." / "🙂 Chat with your Mortal, @handle, here. They don't know it's you."), then the welcome plus `/help` text in the main chat. The help text leads with "chat inside the tabs" and says each thing once, so keep it that way when editing `helpText()`. Intros aren't updated after a re-upload, but the tab name is.
+- There are no `/angel` or `/mortal` commands: a bot can't open a tab for the user, so they could only repeat what the tab bar shows.
 
 ## Code tour
 
@@ -316,7 +317,7 @@ The pairing format, commands and relay behaviour don't depend on the event, so n
 | Broadcast never finishes | Check that the cron is set: Cloudflare dashboard → Worker → Settings → Triggers. Check `npm run logs` for `broadcast cron:` lines. |
 | `/start` says "couldn't set up your Angel and Mortal tabs" | Threaded Mode is off in BotFather (open `/setup` to check), or the participant's Telegram app is too old to support it. |
 | Participant can't see the tabs | Telegram Desktop and Web don't show bot tabs reliably yet (seen in the pilot: Web showed them, then didn't). Have them use the phone app, updated. If the tabs are missing on the phone too, send `/start` again. |
-| `/mortal` doesn't switch to the Mortal tab | Expected. Bots can't open a tab for the user, and `t.me/<bot>/<topic_id>` links don't work for bots (Telegram treats them as Mini App links: "bot application not found"). `/mortal` replies with the exact tab name to tap and leaves a 👇 message in that tab. |
+| Can the bot open a tab for the user? | No. Bots can't open a tab, and `t.me/<bot>/<topic_id>` links don't work for bots (Telegram treats them as Mini App links: "bot application not found"). That's why there are no `/angel` or `/mortal` commands: the welcome and help text point people to the tab bar instead. |
 | "no such column: angel_thread_id" or "…angel_tab_name" in the logs | The database predates that feature. Run the missing migration (see [Operations](#operations)). |
 | The wrong person joined as someone | `/unbind @handle`, then `/swap @handle @real_username` if they still own that username. |
 | `/upload` or `/undoupload` fails with "no such table: pairings_backup" | Your database predates the backup table. Re-run `schema.sql` (see [Operations](#operations)). |

@@ -46,7 +46,7 @@ Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to 
 - **A ⚠️ warning replying to your message**: that message was **not** delivered. The warning quotes it, so you know which one to resend.
 - **"hasn't started the bot yet"**: the other person hasn't joined, so your message was **not** delivered. Try again later.
 - **"Messaging is paused"**: the organisers have paused the bot for now.
-- **"Open the 😇 Angel tab or the 🙂 Mortal tab"**: you typed outside the tabs, so nothing was sent.
+- **"⚠️ Not sent. Type inside the 😇 Angel tab or 🙂 Mortal tab"**: you typed outside the tabs, so nothing was sent.
 - **No tabs?** Switch to Telegram on your phone, updated to the latest version. If they're still missing there, send `/start` again.
 
 ### Good to know
@@ -59,8 +59,6 @@ Inside a tab, swipe left on a message (or long-press → **Reply**) to reply to 
 | Command | |
 |---|---|
 | `/start` | Join, see your Mortal and get your two tabs |
-| `/mortal` | Shows which tab is your Mortal's and leaves a 👇 message in it. Telegram doesn't let the bot open a tab for you, so tap it at the top of the chat. |
-| `/angel` | Same, for your Angel's tab |
 | `/whoismymortal` | Remind me who my Mortal is |
 | `/help` | Show help |
 

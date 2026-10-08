@@ -16,24 +16,21 @@ export interface Env {
 
 const helpText = (eventName: string) => `👼 ${eventName} bot
 
-You have a Mortal (you know who they are, and you welfare them) and an Angel (they welfare you, and they're a secret!).
+👆 Chat inside the tabs at the top of this chat:
+${TAB_LABEL.angel}: your secret Angel, who takes care of YOU
+${TAB_LABEL.mortal}: your Mortal, who YOU take care of
 
-This chat has two tabs:
-• ${TAB_LABEL.angel}: chat with your Angel, the secret person who takes care of YOU.
-• ${TAB_LABEL.mortal}: chat with your Mortal, the person YOU take care of. Their username is on the tab.
+Messages typed outside the tabs are NOT sent.
 
-• Send anything in a tab: text, photos, stickers, voice notes, videos, files.
-• To answer a specific message, use Telegram's Reply on it.
-• Messages from your Angel and Mortal start with a label, so you can tell them apart in Telegram's "All" view.
-• If a message can't be delivered, I'll reply to it with a warning. No warning means it was delivered.
+Tips
+• Text, photos, stickers, voice notes, videos and files all work.
+• Use Reply on a message to answer that one.
+• No warning means it was delivered. If something fails, I'll reply to it with ⚠️.
+• Edits and deletes don't reach the other person.
+• Angels: your name is hidden, but your voice in voice notes isn't 😉
+• Can't see the tabs? Update Telegram and use the phone app.
 
-Can't see the tabs? Update Telegram, or use the app on your phone. Some computer versions of Telegram don't show them yet.
-
-Your identity is never shown, but watch what you write (and your voice in voice notes 😉) if you're the angel!
-
-Note: editing or deleting a message after sending does NOT change the copy the other person got.
-
-Commands: /angel /mortal /whoismymortal /help`;
+/whoismymortal · /help`;
 
 const ADMIN_HELP = `🛠 Admin commands
 
@@ -284,30 +281,6 @@ export function createBot(env: Env): Bot {
     return null;
   }
 
-  /** Posts a pointer inside `me`'s tab for `role`, so the user can tap through to it. */
-  async function pointToTab(ctx: Context, role: Role) {
-    let me = await requireParticipant(ctx);
-    if (!me) return;
-    const partner = await db.partner(me.handle, role);
-    if (!partner) {
-      await ctx.reply(`You don't have ${article(role)} assigned. Contact the organiser.`);
-      return;
-    }
-    me = await ensureTabs(ctx.api, db, me);
-    let text = role === "mortal" ? `👇 Type here to message your Mortal (@${partner.handle}).` : "👇 Type here to message your Angel.";
-    if (partner.chat_id === null) text += `\n\n⚠️ Your ${role} hasn't started the bot yet, so messages can't be delivered until they do.`;
-    const threadId = threadIdFor(me, role)!;
-    await ctx.api.sendMessage(ctx.chat!.id, text, { message_thread_id: threadId });
-
-    // Telegram gives bots no way to open a tab for the user (and t.me links to a bot's topics are
-    // treated as Mini App links), so if they're elsewhere, tell them exactly which tab to tap.
-    const alreadyThere = ctx.msg?.is_topic_message && ctx.msg.message_thread_id === threadId;
-    if (!alreadyThere) {
-      const name = tabName(role, role === "mortal" ? partner.handle : null);
-      await ctx.reply(`👆 Tap the "${name}" tab at the top of this chat to open it. I've left a 👇 message there for you.`);
-    }
-  }
-
   pm.command("start", async (ctx) => {
     let me = await requireParticipant(ctx);
     if (!me) return;
@@ -324,11 +297,9 @@ export function createBot(env: Env): Bot {
     }
 
     const intro: Record<Role, string> = {
-      angel:
-        "😇 Your Angel is the secret person taking care of YOU. Messages you send in this tab go to them, and theirs arrive here.",
+      angel: "😇 Chat with your secret Angel here.",
       mortal: mortal
-        ? `🙂 This is your Mortal, @${mortal.handle}: the person YOU take care of. They don't know it's you. ` +
-          "Messages you send in this tab go to them anonymously, and their replies arrive here."
+        ? `🙂 Chat with your Mortal, @${mortal.handle}, here. They don't know it's you.`
         : "You don't have a mortal assigned yet.",
     };
     for (const role of ROLES) {
@@ -336,9 +307,9 @@ export function createBot(env: Env): Bot {
     }
 
     await ctx.reply(
-      `Welcome, @${me.handle}! 🎉\n\n` +
-        (mortal ? `Your Mortal is @${mortal.handle}. Take good care of them!\n\n` : "") +
-        `Your two tabs are at the top of this chat: tap the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} to start chatting.\n\n${HELP}`,
+      `Welcome, @${me.handle}! 🎉` +
+        (mortal ? ` Your Mortal is @${mortal.handle}. Take good care of them!` : "") +
+        `\n\n${HELP}`,
       // Clears the old mode-switching keyboard for anyone who used an earlier version of the bot.
       { reply_markup: { remove_keyboard: true } },
     );
@@ -346,9 +317,6 @@ export function createBot(env: Env): Bot {
 
   pm.command("help", (ctx) => ctx.reply(HELP));
   pm.command("myid", (ctx) => ctx.reply(`Your Telegram ID: ${ctx.from.id}`));
-
-  pm.command("mortal", (ctx) => pointToTab(ctx, "mortal"));
-  pm.command("angel", (ctx) => pointToTab(ctx, "angel"));
 
   pm.command("whoismymortal", async (ctx) => {
     const me = await requireParticipant(ctx);
@@ -535,8 +503,8 @@ export function createBot(env: Env): Bot {
     const role = roleForThread(me, msg.is_topic_message ? msg.message_thread_id : undefined);
     if (!role) {
       await warn(
-        `Tap the ${TAB_LABEL.angel} or the ${TAB_LABEL.mortal} at the top of this chat to send a message. This one wasn't sent.\n\n` +
-          "Can't see the tabs? Use Telegram on your phone. Some computer versions of Telegram don't show them yet.",
+        `⚠️ Not sent. Type inside the ${TAB_LABEL.angel} or ${TAB_LABEL.mortal} at the top of this chat.\n\n` +
+          "Can't see the tabs? Use the Telegram phone app.",
       );
       return;
     }
